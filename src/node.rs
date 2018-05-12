@@ -1,11 +1,13 @@
-extern crate futures;
-extern crate tokio;
-
 use futures::future;
+use futures::sync::mpsc::{self, UnboundedSender, UnboundedReceiver};
+use tokio::executor::current_thread;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::hash::Hasher;
 use futures::Stream;
 use futures::Future;
 
-struct Message{}
+pub struct Message{}
 
 enum TransportMessage {
     Init(MPSCAddress),
@@ -13,7 +15,7 @@ enum TransportMessage {
 }
 
 #[derive(Clone)]
-struct MPSCAddress{
+pub struct MPSCAddress{
     transport_sender: UnboundedSender<TransportMessage>,
     id: usize, // Necessary for PartialEq
 }
@@ -34,7 +36,7 @@ impl Hash for MPSCAddress{
     }
 }
 
-struct MPSCConnection{
+pub struct MPSCConnection{
     sender: UnboundedSender<Message>,
     receiver: UnboundedReceiver<Message>,
 }
@@ -45,7 +47,7 @@ impl MPSCConnection{
     }
 }
 
-struct MPSCNode{
+pub struct MPSCNode{
     address: MPSCAddress,
     transport_receiver: UnboundedReceiver<TransportMessage>,
     seeds: Vec<MPSCAddress>,
@@ -65,6 +67,10 @@ impl MPSCNode{
             transport_receiver: channel_receiver,
             seeds: vec![],
         }
+    }
+
+    pub fn address(&self) -> &MPSCAddress{
+        &self.address
     }
 
     pub fn include_seed(&mut self, address: MPSCAddress){
@@ -121,38 +127,8 @@ impl MPSCNode{
     }
 }
 
-fn send_or_panic<M>(sender: &UnboundedSender<M>, message: M){
+pub fn send_or_panic<M>(sender: &UnboundedSender<M>, message: M){
     if let Err(_err) = sender.unbounded_send(message){
         panic!()
     }
-}
-
-fn main() {
-    let mut node_a = MPSCNode::new(1);
-
-    let mut node_b = MPSCNode::new(2);
-
-    node_a.include_seed(node_b.address().clone());
-    node_b.include_seed(node_a.address().clone());
-
-    let thread = std::thread::spawn(move ||{
-        node_a.run(connection_main);
-    });
-
-    node_b.run(connection_main);
-    thread.join().unwrap_or(());
-}
-
-fn connection_main(connection: MPSCConnection){
-    println!("Connection received.");
-    let (sender, receiver) = connection.split();
-
-    node::send_or_panic(&sender, Message{});
-
-    let incoming = receiver.for_each(|_message|{
-        println!("Message received.");
-        future::ok(())
-    });
-
-    current_thread::spawn(incoming);
 }
