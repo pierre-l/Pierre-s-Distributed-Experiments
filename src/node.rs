@@ -7,54 +7,52 @@ use std::hash::Hasher;
 use futures::Stream;
 use futures::Future;
 
-pub struct Message{}
-
-enum TransportMessage {
-    Init(MPSCAddress),
-    Ack(usize, UnboundedSender<Message>),
+enum TransportMessage<M> {
+    Init(MPSCAddress<M>),
+    Ack(usize, UnboundedSender<M>),
 }
 
 #[derive(Clone)]
-pub struct MPSCAddress{
-    transport_sender: UnboundedSender<TransportMessage>,
+pub struct MPSCAddress<M>{
+    transport_sender: UnboundedSender<TransportMessage<M>>,
     id: usize, // Necessary for PartialEq
 }
 
-impl Eq for MPSCAddress{
+impl <M> Eq for MPSCAddress<M>{
 
 }
 
-impl PartialEq for MPSCAddress{
-    fn eq(&self, other: &MPSCAddress) -> bool {
+impl <M> PartialEq for MPSCAddress<M>{
+    fn eq(&self, other: &MPSCAddress<M>) -> bool {
         self.id == other.id
     }
 }
 
-impl Hash for MPSCAddress{
+impl <M> Hash for MPSCAddress<M>{
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-pub struct MPSCConnection{
-    sender: UnboundedSender<Message>,
-    receiver: UnboundedReceiver<Message>,
+pub struct MPSCConnection<M>{
+    sender: UnboundedSender<M>,
+    receiver: UnboundedReceiver<M>,
 }
 
-impl MPSCConnection{
-    pub fn split(self) -> (UnboundedSender<Message>, UnboundedReceiver<Message>) {
+impl <M> MPSCConnection<M>{
+    pub fn split(self) -> (UnboundedSender<M>, UnboundedReceiver<M>) {
         (self.sender, self.receiver)
     }
 }
 
-pub struct MPSCNode{
-    address: MPSCAddress,
-    transport_receiver: UnboundedReceiver<TransportMessage>,
-    seeds: Vec<MPSCAddress>,
+pub struct MPSCNode<M> where M: Clone{
+    address: MPSCAddress<M>,
+    transport_receiver: UnboundedReceiver<TransportMessage<M>>,
+    seeds: Vec<MPSCAddress<M>>,
 }
 
-impl MPSCNode{
-    pub fn new(address_id: usize) -> MPSCNode{
+impl <M> MPSCNode<M> where M: Clone{
+    pub fn new(address_id: usize) -> MPSCNode<M>{
         let (channel_sender, channel_receiver) = mpsc::unbounded();
 
         let address = MPSCAddress{
@@ -69,16 +67,16 @@ impl MPSCNode{
         }
     }
 
-    pub fn address(&self) -> &MPSCAddress{
+    pub fn address(&self) -> &MPSCAddress<M>{
         &self.address
     }
 
-    pub fn include_seed(&mut self, address: MPSCAddress){
+    pub fn include_seed(&mut self, address: MPSCAddress<M>){
         self.seeds.push(address);
     }
 
     pub fn run<F>(self, connection_consumer: F)
-        where F: Fn(MPSCConnection) -> () + 'static{
+        where F: Fn(MPSCConnection<M>) -> () + 'static{
         for address in &self.seeds {
             let init_message = TransportMessage::Init(self.address.clone());
 
@@ -94,7 +92,7 @@ impl MPSCNode{
                     let (
                         connection_sender,
                         connection_receiver,
-                    ): (UnboundedSender<Message>, UnboundedReceiver<Message>) = mpsc::unbounded::<Message>();
+                    ): (UnboundedSender<M>, UnboundedReceiver<M>) = mpsc::unbounded::<M>();
 
                     let ack_message = TransportMessage::Ack(self_address_id, connection_sender);
                     connections.insert(remote_address.id, connection_receiver);
