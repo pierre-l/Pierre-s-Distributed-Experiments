@@ -3,40 +3,56 @@ extern crate tokio;
 
 mod node;
 
-use node::{MPSCNode, MPSCConnection};
-use tokio::executor::current_thread;
+use node::MPSCNode;
 use futures::future;
+use futures::Future;
 use futures::Stream;
 
 #[derive(Clone)]
 pub struct Message{}
 
 fn main() {
-    let mut node_a = MPSCNode::new(1);
+    let mut nodes = vec![];
+    let mut addresses = vec![];
+    for i in 0..2 {
+        let node = MPSCNode::new(i);
+        addresses.push(node.address().clone());
+        nodes.push(node);
+    }
 
-    let mut node_b = MPSCNode::new(2);
+    for node in &mut nodes{
+        for seed in &addresses{
+            if node.address().ne(seed){
+                node.include_seed(seed.clone());
+            }
+        }
+    }
 
-    node_a.include_seed(node_b.address().clone());
-    node_b.include_seed(node_a.address().clone());
+    let mut threads = vec![];
+    for node in nodes{
+        let thread = std::thread::spawn(move ||{
+            println!("Starting a new node.");
+            node.run(|connection|{
+                println!("Connection received.");
+                let (sender, receiver) = connection.split();
 
-    let thread = std::thread::spawn(move ||{
-        node_a.run(connection_main);
-    });
+                node::send_or_panic(&sender, Message{});
 
-    node_b.run(connection_main);
-    thread.join().unwrap_or(());
-}
+                receiver
+                    .into_future()
+                    .and_then(|(_first, _rest)|{
+                        println!("Message received.");
+                        future::ok(())
+                    })
+                    .map_err(|_|{
+                        panic!()
+                    })
+            });
+        });
+        threads.push(thread);
+    }
 
-fn connection_main(connection: MPSCConnection<Message>){
-    println!("Connection received.");
-    let (sender, receiver) = connection.split();
-
-    node::send_or_panic(&sender, Message{});
-
-    let incoming = receiver.for_each(|_message|{
-        println!("Message received.");
-        future::ok(())
-    });
-
-    current_thread::spawn(incoming);
+    for thread in threads{
+        thread.join().unwrap_or(());
+    }
 }

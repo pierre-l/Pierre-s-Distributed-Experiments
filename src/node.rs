@@ -75,8 +75,10 @@ impl <M> MPSCNode<M> where M: Clone{
         self.seeds.push(address);
     }
 
-    pub fn run<F>(self, connection_consumer: F)
-        where F: Fn(MPSCConnection<M>) -> () + 'static{
+    pub fn run<A, F>(self, connection_consumer: F)
+        where
+    A: Future<Item=(), Error=()> + 'static,
+    F: Fn(MPSCConnection<M>) -> A{
         for address in &self.seeds {
             let init_message = TransportMessage::Init(self.address.clone());
 
@@ -106,7 +108,7 @@ impl <M> MPSCNode<M> where M: Clone{
                             receiver
                         };
 
-                        consumer_ref(connection);
+                        current_thread::spawn(consumer_ref(connection));
                     } else {
                         panic!()
                     }
