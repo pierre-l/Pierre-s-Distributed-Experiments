@@ -4,6 +4,7 @@ use tokio::executor::current_thread;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
+use std::thread;
 use futures::Stream;
 use futures::Future;
 
@@ -45,13 +46,13 @@ impl <M> MPSCConnection<M>{
     }
 }
 
-pub struct MPSCNode<M> where M: Clone{
+pub struct MPSCNode<M> where M: Clone + Send{
     address: MPSCAddress<M>,
     transport_receiver: UnboundedReceiver<TransportMessage<M>>,
     seeds: Vec<MPSCAddress<M>>,
 }
 
-impl <M> MPSCNode<M> where M: Clone{
+impl <M> MPSCNode<M> where M: Clone + Send + 'static{
     pub fn new(address_id: usize) -> MPSCNode<M>{
         let (channel_sender, channel_receiver) = mpsc::unbounded();
 
@@ -78,7 +79,7 @@ impl <M> MPSCNode<M> where M: Clone{
     pub fn run<A, F>(self, connection_consumer: F)
         where
     A: Future<Item=(), Error=()> + 'static,
-    F: Fn(MPSCConnection<M>) -> A{
+    F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static{
         for address in &self.seeds {
             let init_message = TransportMessage::Init(self.address.clone());
 
@@ -87,8 +88,7 @@ impl <M> MPSCNode<M> where M: Clone{
 
         let self_address_id = self.address.id;
         let mut connections = HashMap::new();
-        let consumer_ref = &connection_consumer;
-        let node_future = self.transport_receiver.for_each(|transport_message|{
+        let node_future = self.transport_receiver.for_each(move |transport_message|{
             match transport_message {
                 TransportMessage::Init(remote_address) => {
                     let (
@@ -108,12 +108,12 @@ impl <M> MPSCNode<M> where M: Clone{
                             receiver
                         };
 
-                        current_thread::spawn(consumer_ref(connection));
+                        current_thread::spawn(connection_consumer(connection));
                     } else {
                         panic!()
                     }
-                }
-            }
+                },
+            };
 
             future::ok(())
         })
@@ -123,7 +123,10 @@ impl <M> MPSCNode<M> where M: Clone{
             .map_err(|()|{})
         ;
 
-        current_thread::block_on_all(node_future).unwrap_or(());
+
+        thread::spawn(move || {
+            current_thread::block_on_all(node_future).unwrap_or(());
+        });
     }
 }
 
