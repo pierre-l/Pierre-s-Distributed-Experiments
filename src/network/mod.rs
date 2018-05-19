@@ -1,7 +1,8 @@
 pub mod node;
 
-pub use network::node::MPSCNode;
-pub use network::node::MPSCAddress;
+use network::node::MPSCNode;
+use network::node::MPSCAddress;
+pub use network::node::{send_or_panic, MPSCConnection};
 use rand::{self, Rng};
 
 pub fn new_network<M>(size: usize, average_number_of_connections_per_node: usize) -> Vec<MPSCNode<M>> where M: Clone + Send + 'static{

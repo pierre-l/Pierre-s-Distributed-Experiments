@@ -4,7 +4,7 @@ extern crate rand;
 
 mod network;
 
-use network::node::MPSCConnection;
+use network::MPSCConnection;
 use futures::future;
 use futures::Future;
 use futures::Stream;
