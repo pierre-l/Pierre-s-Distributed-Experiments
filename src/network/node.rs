@@ -1,13 +1,11 @@
 use futures::future;
 use futures::sync::mpsc::{self, UnboundedSender, UnboundedReceiver};
-use tokio::executor::current_thread;
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
-use std::thread;
 use futures::Stream;
 use futures::Future;
-use std::thread::JoinHandle;
+use tokio;
 
 #[derive(Debug)]
 enum TransportMessage<M> {
@@ -78,9 +76,9 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
         self.seeds.push(address);
     }
 
-    pub fn run<A, F>(self, connection_consumer: F) -> JoinHandle<()>
+    pub fn run<A, F>(self, connection_consumer: F)
         where
-    A: Future<Item=(), Error=()> + 'static,
+    A: Future<Item=(), Error=()> + Send + 'static,
     F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static{
         let self_address = self.address;
         let self_address_id = self_address.id;
@@ -116,7 +114,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
                             receiver,
                         };
 
-                        current_thread::spawn(connection_consumer(connection));
+                        tokio::spawn(connection_consumer(connection));
                     } else {
                         panic!("Could not find the connection to acknowledge.")
                     }
@@ -126,21 +124,19 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
             future::ok(())
         })
             .then(|_|{
+                println!("Node stopped.");
                 future::ok(())
             })
             .map_err(|()|{})
         ;
 
-
-        thread::spawn(move || {
-            current_thread::block_on_all(node_future).unwrap_or(());
-        })
+        tokio::spawn(node_future);
     }
 
     fn init_new_virtual_connection<A, F>(remote_connection_sender: UnboundedSender<M>, connection_consumer: &F)
         -> UnboundedSender<M>
         where
-            A: Future<Item=(), Error=()> + 'static,
+            A: Future<Item=(), Error=()> + Send + 'static,
             F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static
     {
         let (
@@ -153,7 +149,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
             receiver: connection_receiver,
         };
 
-        current_thread::spawn(connection_consumer(connection));
+        tokio::spawn(connection_consumer(connection));
 
         connection_sender
     }
@@ -162,62 +158,5 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
 pub fn send_or_panic<M>(sender: &UnboundedSender<M>, message: M){
     if let Err(_err) = sender.unbounded_send(message){
         panic!("{}", _err)
-    }
-}
-
-#[cfg(test)]
-mod tests{
-    use super::*;
-    use std::time::Duration;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::sync::Arc;
-
-    #[derive(Clone, Debug)]
-    pub struct Message{}
-
-    #[test]
-    fn can_connect_2_nodes_together(){
-        let mut nodes = vec![];
-
-        for _i in 0..2{
-            let mut node: MPSCNode<Message> = MPSCNode::new(1);
-            nodes.push(node);
-        }
-
-        let node_b_address = nodes.get(1).unwrap().address.clone();
-
-        {
-            let node_a = nodes.get_mut(0).unwrap();
-
-            node_a.include_seed(node_b_address);
-        }
-
-
-        let mut handles = vec![];
-        let global_number_of_received_messages = Arc::new(AtomicUsize::new(0));
-        for node in nodes{
-            let received_messages = global_number_of_received_messages.clone();
-            let handle = node.run(move |connection|{
-                let received_messages = received_messages.clone();
-                let (sender, receiver) = connection.split();
-
-                // Send one message per connection received for each node.
-                send_or_panic(&sender, Message{});
-
-                receiver
-                    .for_each(move |_message|{
-                        println!("Message received.");
-                        received_messages.fetch_add(1, Ordering::Relaxed);
-                        future::ok(())
-                    })
-                    .map_err(|_|{
-                        panic!()
-                    })
-            });
-            handles.push(handle);
-        }
-
-        thread::sleep(Duration::from_millis(100));
-        assert_eq!(2, global_number_of_received_messages.load(Ordering::Relaxed))
     }
 }
