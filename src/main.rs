@@ -11,7 +11,7 @@ use futures::{future, Stream, Future};
 pub struct Message{}
 
 fn main() {
-    let network = Network::new(10, 3);
+    let network = Network::new(50, 4);
     network.run(||{
         |connection: MPSCConnection<Message>|{
             println!("Connection received.");

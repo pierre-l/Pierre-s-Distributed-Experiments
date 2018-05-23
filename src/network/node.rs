@@ -35,6 +35,12 @@ impl <M> Hash for MPSCAddress<M>{
     }
 }
 
+impl <M> MPSCAddress<M>{
+    pub fn id(&self) -> &usize{
+        &self.id
+    }
+}
+
 pub struct MPSCConnection<M>{
     sender: UnboundedSender<M>,
     receiver: UnboundedReceiver<M>,

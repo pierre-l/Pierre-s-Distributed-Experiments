@@ -1,16 +1,18 @@
-pub mod node;
-
-pub use network::node::{send_or_panic, MPSCConnection};
-use network::node::MPSCNode;
-use network::node::MPSCAddress;
-use rand::{self, Rng};
 use futures::Future;
-use std::time::Duration;
-use std::thread;
-use tokio;
-use futures::Stream;
 use futures::future;
-use futures::sync::mpsc::{self, UnboundedSender, UnboundedReceiver};
+use futures::Stream;
+use futures::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+pub use network::node::{MPSCConnection, send_or_panic};
+use network::node::MPSCAddress;
+use network::node::MPSCNode;
+use rand::{self, Rng};
+use std::collections::HashSet;
+use std::thread;
+use std::time::Duration;
+use tokio;
+use std::hash::Hash;
+
+pub mod node;
 
 pub struct Network<M> where M: Clone + Send + 'static{
     nodes: Vec<MPSCNode<M>>,
@@ -20,9 +22,9 @@ impl <M> Network<M> where M: Clone + Send + 'static{
     pub fn new(size: usize, average_number_of_connections_per_node: usize)
         -> Network<M> where M: Clone + Send + 'static
     {
-        // TODO Avoid connecting the same nodes twice
         let mut nodes = vec![];
         let mut addresses = vec![];
+        let mut defined_connections = BiSet::new();
 
         for i in 0..size {
             let node = MPSCNode::new(i);
@@ -31,11 +33,27 @@ impl <M> Network<M> where M: Clone + Send + 'static{
         }
 
         for node in &mut nodes{
-            let mut addresses = addresses.clone();
-            for _i in 0..average_number_of_connections_per_node/2 + 1 {
-                let seed_index = node.random_different_address(&addresses);
+            let mut candidate_addresses = vec![];
 
-                node.include_seed(addresses.remove(seed_index));
+            let node_address_id = *node.address().id();
+            for candidate in &addresses{
+                let candidate_address_id = *candidate.id();
+                if node_address_id != candidate_address_id
+                    && !defined_connections.contains(node_address_id, candidate_address_id)
+                {
+                    candidate_addresses.push(candidate.clone());
+                }
+            }
+
+            for _i in 0..average_number_of_connections_per_node/2 + 1 {
+                let pool_not_empty = candidate_addresses.len() > 0;
+                if pool_not_empty {
+                    let seed_index = node.random_different_address(&candidate_addresses);
+
+                    let seed_address = candidate_addresses.remove(seed_index);
+                    defined_connections.insert(*seed_address.id(), node_address_id);
+                    node.include_seed(seed_address);
+                }
             }
         }
 
@@ -71,6 +89,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
         drop(handle);
     }
 }
+
 fn stream_of<T>(vector: Vec<T>) -> (UnboundedSender<T>, UnboundedReceiver<T>) {
     let (sender, receiver,) = mpsc::unbounded::<T>();
 
@@ -84,26 +103,49 @@ fn stream_of<T>(vector: Vec<T>) -> (UnboundedSender<T>, UnboundedReceiver<T>) {
 impl <M> MPSCNode<M> where M: Clone + Send + 'static{
     fn random_different_address(&self, pool: &Vec<MPSCAddress<M>>) -> usize{
         let mut rng = rand::thread_rng();
-
-        let mut candidate_index = rng.gen_range(0, pool.len());
-        let mut candidate = pool.get(candidate_index).unwrap().clone();
-
-        while candidate.eq(self.address()) {
-            candidate_index = rng.gen_range(0, pool.len());
-            candidate = pool.get(candidate_index).unwrap().clone();
-        }
-
-        candidate_index
+        rng.gen_range(0, pool.len())
     }
 }
 
+/// A very naive HashSet for tuples.
+/// May not be the most efficient because 'contains' method instantiate a new tuple, requiring
+/// owned items.
+struct BiSet<T> where T: Hash + Ord{
+    inner: HashSet<(T, T)>
+}
+
+impl <T> BiSet<T> where T: Hash + Ord{
+    pub fn new() -> BiSet<T>{
+        BiSet{
+            inner: HashSet::new()
+        }
+    }
+
+    pub fn insert(&mut self, one: T, other: T) {
+        if one < other {
+            self.inner.insert((one, other));
+        } else {
+            self.inner.insert((other, one));
+        }
+    }
+
+    pub fn contains(&self, one: T, other: T) -> bool{
+        if one < other {
+            self.inner.contains(&(one, other))
+        } else {
+            self.inner.contains(&(other, one))
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests{
-    use super::*;
-    use std::time::Duration;
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
-    use std::thread;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Duration;
+    use super::*;
+    use std::hash::Hash;
 
     #[derive(Clone, Debug)]
     pub struct Message{}
