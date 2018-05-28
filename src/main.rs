@@ -1,8 +1,10 @@
 extern crate futures;
 extern crate tokio;
 extern crate rand;
+extern crate ring;
 
 mod network;
+mod blockchain;
 
 use network::{Network, MPSCConnection};
 use futures::{future, Stream, Future};

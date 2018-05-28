@@ -7,10 +7,10 @@ use network::node::MPSCAddress;
 use network::node::MPSCNode;
 use rand::{self, Rng};
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::thread;
 use std::time::Duration;
 use tokio;
-use std::hash::Hash;
 
 pub mod node;
 
@@ -145,7 +145,6 @@ mod tests{
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
     use super::*;
-    use std::hash::Hash;
 
     #[derive(Clone, Debug)]
     pub struct Message{}
