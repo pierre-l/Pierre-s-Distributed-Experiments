@@ -2,7 +2,7 @@ use ring::digest::{self, Digest, SHA256, SHA256_OUTPUT_LEN};
 use std::cmp::Ordering;
 use std::u8::MAX as U8_MAX;
 
-struct Difficulty([u8; SHA256_OUTPUT_LEN]);
+pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
 impl Difficulty{
     pub fn min_difficulty() -> Difficulty{
@@ -32,7 +32,7 @@ impl Difficulty{
 }
 
 #[derive(Clone, Debug)]
-struct Hash{
+pub struct Hash{
     digest: Digest,
 }
 
@@ -61,6 +61,12 @@ impl Hash{
     }
 }
 
+impl PartialEq for Hash{
+    fn eq(&self, other: &Hash) -> bool {
+        self.digest.as_ref().eq(other.digest.as_ref())
+    }
+}
+
 fn less_than_u8(one: &[u8], other: &[u8]) -> bool{
     // Still, we assume that `one` and `other` have the same length.
     let len = one.len();
@@ -75,7 +81,8 @@ fn less_than_u8(one: &[u8], other: &[u8]) -> bool{
     temp_result == Ordering::Less
 }
 
-struct Nonce([u8; 8]);
+#[derive(Clone, Debug)]
+pub struct Nonce([u8; 8]);
 
 impl Nonce{
     pub fn new() -> Nonce {

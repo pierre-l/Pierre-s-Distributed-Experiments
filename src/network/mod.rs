@@ -176,7 +176,7 @@ mod tests{
             }
         });
 
-        thread::sleep(Duration::from_millis(10));
+        thread::sleep(Duration::from_millis(1000));
         assert_eq!(8, global_number_of_received_messages.load(Ordering::Relaxed))
     }
 }
