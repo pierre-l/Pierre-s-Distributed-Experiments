@@ -1,3 +1,5 @@
+#[macro_use] extern crate log;
+extern crate env_logger;
 extern crate futures;
 extern crate tokio;
 extern crate rand;
@@ -13,17 +15,19 @@ use futures::{future, Stream, Future};
 pub struct Message{}
 
 fn main() {
+    env_logger::init();
+
     let network = Network::new(50, 4);
     network.run(||{
         |connection: MPSCConnection<Message>|{
-            println!("Connection received.");
+            debug!("Connection received.");
             let (sender, receiver) = connection.split();
 
             network::node::send_or_panic(&sender, Message{});
 
             let reception = receiver
                 .for_each(|_message|{
-                    println!("Message received.");
+                    debug!("Message received.");
                     future::ok(())
                 })
                 .map_err(|_|{

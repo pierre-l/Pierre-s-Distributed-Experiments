@@ -1,9 +1,11 @@
 [package]
-name = "blockchain-experiments"
+name = "blockchain_51_simulation"
 version = "0.1.0"
 authors = ["pierre-l <pierre.larger@gmail.com>"]
 
 [dependencies]
+env_logger = "0.5.10"
+log = "0.4.1"
 futures = "0.1.19"
 tokio = "0.1.6"
 rand = "0.3"

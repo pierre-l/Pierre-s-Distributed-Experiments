@@ -105,7 +105,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
         let node_future = self.transport_receiver.for_each(move |transport_message|{
             match transport_message {
                 TransportMessage::Init(remote_address, remote_connection_sender) => {
-                    println!("Initiating connection from {} to {}", &remote_address.id, &self_address_id);
+                    debug!("Initiating connection from {} to {}", &remote_address.id, &self_address_id);
 
                     let connection_sender = MPSCNode::init_new_virtual_connection(remote_connection_sender, &connection_consumer);
 
@@ -113,7 +113,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
                     send_or_panic(&remote_address.transport_sender, ack_message);
                 },
                 TransportMessage::Ack(address_id, sender) => {
-                    println!("Ack connection from {} to {}", &self_address_id, &address_id);
+                    debug!("Ack connection from {} to {}", &self_address_id, &address_id);
                     if let Some(receiver) = connections.remove(&address_id){
                         let connection = MPSCConnection{
                             sender,
@@ -130,7 +130,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
             future::ok(())
         })
             .then(|_|{
-                println!("Node stopped.");
+                info!("Node stopped.");
                 future::ok(())
             })
             .map_err(|()|{})

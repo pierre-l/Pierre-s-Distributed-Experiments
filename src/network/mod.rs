@@ -73,7 +73,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             let (sender, receiver) = stream_of(nodes);
             let nodes_future = receiver
                 .for_each(move |node|{
-                    println!("Starting a new node.");
+                    info!("Starting a new node.");
                     node.run(connection_consumer_factory());
                     future::ok(())
                 })
