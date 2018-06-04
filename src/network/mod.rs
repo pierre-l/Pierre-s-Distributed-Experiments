@@ -74,7 +74,17 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             let nodes_future = receiver
                 .for_each(move |transport|{
                     info!("Starting a new node.");
-                    let node_future = transport.run(connection_consumer_factory());
+                    let connection_consumer = connection_consumer_factory();
+                    let node_future = transport.run()
+                        .for_each(move |connection|{
+                            tokio::spawn(connection_consumer(connection));
+                            future::ok(())
+                        })
+                        .then(|_|{
+                            info!("Node stopped.");
+                            future::ok(())
+                        })
+                        .map_err(|()|{});
                     tokio::spawn(node_future);
 
                     future::ok(())

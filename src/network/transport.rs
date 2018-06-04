@@ -82,10 +82,7 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
         self.seeds.push(address);
     }
 
-    pub fn run<A, F>(self, connection_consumer: F) -> impl Future<Item=(), Error=()>
-        where
-    A: Future<Item=(), Error=()> + Send + 'static,
-    F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static{
+    pub fn run(self,) -> impl Stream<Item=MPSCConnection<M>, Error=()>{
         let self_address = self.address;
         let self_address_id = self_address.id;
         let mut connections = HashMap::new();
@@ -137,15 +134,6 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
                 },
             }
         })
-            .for_each(move |connection|{
-                tokio::spawn(connection_consumer(connection));
-                future::ok(())
-            })
-            .then(|_|{
-                info!("Node stopped.");
-                future::ok(())
-            })
-            .map_err(|()|{})
     }
 }
 
