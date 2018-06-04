@@ -52,14 +52,14 @@ impl <M> MPSCConnection<M>{
     }
 }
 
-pub struct MPSCNode<M> where M: Clone + Send{
+pub struct MPSCTransport<M> where M: Clone + Send{
     address: MPSCAddress<M>,
     transport_receiver: UnboundedReceiver<TransportMessage<M>>,
     seeds: Vec<MPSCAddress<M>>,
 }
 
-impl <M> MPSCNode<M> where M: Clone + Send + 'static{
-    pub fn new(address_id: usize) -> MPSCNode<M>{
+impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
+    pub fn new(address_id: usize) -> MPSCTransport<M>{
         let (channel_sender, channel_receiver) = mpsc::unbounded();
 
         let address = MPSCAddress{
@@ -67,7 +67,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
             id: address_id,
         };
 
-        MPSCNode{
+        MPSCTransport {
             address,
             transport_receiver: channel_receiver,
             seeds: vec![],
@@ -107,7 +107,7 @@ impl <M> MPSCNode<M> where M: Clone + Send + 'static{
                 TransportMessage::Init(remote_address, remote_connection_sender) => {
                     debug!("Initiating connection from {} to {}", &remote_address.id, &self_address_id);
 
-                    let connection_sender = MPSCNode::init_new_virtual_connection(remote_connection_sender, &connection_consumer);
+                    let connection_sender = MPSCTransport::init_new_virtual_connection(remote_connection_sender, &connection_consumer);
 
                     let ack_message = TransportMessage::Ack(self_address_id, connection_sender);
                     send_or_panic(&remote_address.transport_sender, ack_message);

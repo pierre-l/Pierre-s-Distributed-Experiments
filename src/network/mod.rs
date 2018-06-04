@@ -2,9 +2,9 @@ use futures::Future;
 use futures::future;
 use futures::Stream;
 use futures::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-pub use network::node::{MPSCConnection, send_or_panic};
-use network::node::MPSCAddress;
-use network::node::MPSCNode;
+pub use network::transport::{MPSCConnection, send_or_panic};
+use network::transport::MPSCAddress;
+use network::transport::MPSCTransport;
 use rand::{self, Rng};
 use std::collections::HashSet;
 use std::hash::Hash;
@@ -12,30 +12,30 @@ use std::thread;
 use std::time::Duration;
 use tokio;
 
-pub mod node;
+pub mod transport;
 
 pub struct Network<M> where M: Clone + Send + 'static{
-    nodes: Vec<MPSCNode<M>>,
+    transports: Vec<MPSCTransport<M>>,
 }
 
 impl <M> Network<M> where M: Clone + Send + 'static{
     pub fn new(size: usize, average_number_of_connections_per_node: usize)
         -> Network<M> where M: Clone + Send + 'static
     {
-        let mut nodes = vec![];
+        let mut transports = vec![];
         let mut addresses = vec![];
         let mut defined_connections = BiSet::new();
 
         for i in 0..size {
-            let node = MPSCNode::new(i);
+            let node = MPSCTransport::new(i);
             addresses.push(node.address().clone());
-            nodes.push(node);
+            transports.push(node);
         }
 
-        for node in &mut nodes{
+        for transports in &mut transports{
             let mut candidate_addresses = vec![];
 
-            let node_address_id = *node.address().id();
+            let node_address_id = *transports.address().id();
             for candidate in &addresses{
                 let candidate_address_id = *candidate.id();
                 if node_address_id != candidate_address_id
@@ -48,17 +48,17 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             for _i in 0..average_number_of_connections_per_node/2 + 1 {
                 let pool_not_empty = candidate_addresses.len() > 0;
                 if pool_not_empty {
-                    let seed_index = node.random_different_address(&candidate_addresses);
+                    let seed_index = transports.random_different_address(&candidate_addresses);
 
                     let seed_address = candidate_addresses.remove(seed_index);
                     defined_connections.insert(*seed_address.id(), node_address_id);
-                    node.include_seed(seed_address);
+                    transports.include_seed(seed_address);
                 }
             }
         }
 
         Network{
-            nodes
+            transports
         }
     }
 
@@ -68,7 +68,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static,
             G: Fn() -> F + Sync + Send + 'static
     {
-        let nodes = self.nodes;
+        let nodes = self.transports;
         let handle = thread::spawn(move ||{
             let (sender, receiver) = stream_of(nodes);
             let nodes_future = receiver
@@ -94,13 +94,13 @@ fn stream_of<T>(vector: Vec<T>) -> (UnboundedSender<T>, UnboundedReceiver<T>) {
     let (sender, receiver,) = mpsc::unbounded::<T>();
 
     for item in vector{
-        node::send_or_panic(&sender, item);
+        transport::send_or_panic(&sender, item);
     }
 
     (sender, receiver,)
 }
 
-impl <M> MPSCNode<M> where M: Clone + Send + 'static{
+impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
     fn random_different_address(&self, pool: &Vec<MPSCAddress<M>>) -> usize{
         let mut rng = rand::thread_rng();
         rng.gen_range(0, pool.len())

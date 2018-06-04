@@ -23,7 +23,7 @@ fn main() {
             debug!("Connection received.");
             let (sender, receiver) = connection.split();
 
-            network::node::send_or_panic(&sender, Message{});
+            network::transport::send_or_panic(&sender, Message{});
 
             let reception = receiver
                 .for_each(|_message|{
