@@ -102,15 +102,25 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
             send_or_panic(&remote_address.transport_sender, init_message);
         }
 
-        self.transport_receiver.for_each(move |transport_message|{
+        self.transport_receiver.map(move |transport_message|{
             match transport_message {
                 TransportMessage::Init(remote_address, remote_connection_sender) => {
                     debug!("Initiating connection from {} to {}", &remote_address.id, &self_address_id);
 
-                    let connection_sender = MPSCTransport::init_new_virtual_connection(remote_connection_sender, &connection_consumer);
+                    let (
+                        connection_sender,
+                        connection_receiver,
+                    ): (UnboundedSender<M>, UnboundedReceiver<M>) = mpsc::unbounded::<M>();
+
+                    let connection = MPSCConnection{
+                        sender: remote_connection_sender,
+                        receiver: connection_receiver,
+                    };
 
                     let ack_message = TransportMessage::Ack(self_address_id, connection_sender);
                     send_or_panic(&remote_address.transport_sender, ack_message);
+
+                    connection
                 },
                 TransportMessage::Ack(address_id, sender) => {
                     debug!("Ack connection from {} to {}", &self_address_id, &address_id);
@@ -120,41 +130,22 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
                             receiver,
                         };
 
-                        tokio::spawn(connection_consumer(connection));
+                        connection
                     } else {
                         panic!("Could not find the connection to acknowledge.")
                     }
                 },
-            };
-
-            future::ok(())
+            }
         })
+            .for_each(move |connection|{
+                tokio::spawn(connection_consumer(connection));
+                future::ok(())
+            })
             .then(|_|{
                 info!("Node stopped.");
                 future::ok(())
             })
             .map_err(|()|{})
-    }
-
-    fn init_new_virtual_connection<A, F>(remote_connection_sender: UnboundedSender<M>, connection_consumer: &F)
-        -> UnboundedSender<M>
-        where
-            A: Future<Item=(), Error=()> + Send + 'static,
-            F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static
-    {
-        let (
-            connection_sender,
-            connection_receiver,
-        ): (UnboundedSender<M>, UnboundedReceiver<M>) = mpsc::unbounded::<M>();
-
-        let connection = MPSCConnection{
-            sender: remote_connection_sender,
-            receiver: connection_receiver,
-        };
-
-        tokio::spawn(connection_consumer(connection));
-
-        connection_sender
     }
 }
 
