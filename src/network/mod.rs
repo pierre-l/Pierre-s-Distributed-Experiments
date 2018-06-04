@@ -72,9 +72,11 @@ impl <M> Network<M> where M: Clone + Send + 'static{
         let handle = thread::spawn(move ||{
             let (sender, receiver) = stream_of(nodes);
             let nodes_future = receiver
-                .for_each(move |node|{
+                .for_each(move |transport|{
                     info!("Starting a new node.");
-                    node.run(connection_consumer_factory());
+                    let node_future = transport.run(connection_consumer_factory());
+                    tokio::spawn(node_future);
+
                     future::ok(())
                 })
             ;

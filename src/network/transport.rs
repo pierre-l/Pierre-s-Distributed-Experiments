@@ -82,7 +82,7 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
         self.seeds.push(address);
     }
 
-    pub fn run<A, F>(self, connection_consumer: F)
+    pub fn run<A, F>(self, connection_consumer: F) -> impl Future<Item=(), Error=()>
         where
     A: Future<Item=(), Error=()> + Send + 'static,
     F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static{
@@ -102,7 +102,7 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
             send_or_panic(&remote_address.transport_sender, init_message);
         }
 
-        let node_future = self.transport_receiver.for_each(move |transport_message|{
+        self.transport_receiver.for_each(move |transport_message|{
             match transport_message {
                 TransportMessage::Init(remote_address, remote_connection_sender) => {
                     debug!("Initiating connection from {} to {}", &remote_address.id, &self_address_id);
@@ -134,9 +134,6 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
                 future::ok(())
             })
             .map_err(|()|{})
-        ;
-
-        tokio::spawn(node_future);
     }
 
     fn init_new_virtual_connection<A, F>(remote_connection_sender: UnboundedSender<M>, connection_consumer: &F)
