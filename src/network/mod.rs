@@ -81,10 +81,11 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                     info!("Starting a new node.");
                     let node = Arc::new(node_factory());
 
-                    let node_clone = node.clone();
+                    node.on_start();
+
                     let node_future = transport.run()
                         .for_each(move |connection|{
-                            node_clone.on_new_connection(connection);
+                            node.on_new_connection(connection);
                             future::ok(())
                         })
                         .then(|_|{
@@ -92,9 +93,8 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                             future::ok(())
                         })
                         .map_err(|()|{});
-                    tokio::spawn(node_future);
 
-                    node.on_start();
+                    tokio::spawn(node_future);
                     future::ok(())
                 })
             ;
