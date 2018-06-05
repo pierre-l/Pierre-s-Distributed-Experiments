@@ -10,7 +10,13 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::thread;
 use std::time::Duration;
+use std::sync::Arc;
 use tokio;
+
+pub trait Node<M>{
+    fn on_new_connection(&self, connection: MPSCConnection<M>);
+    fn on_start(&self);
+}
 
 pub mod transport;
 
@@ -62,11 +68,10 @@ impl <M> Network<M> where M: Clone + Send + 'static{
         }
     }
 
-    pub fn run<G, F, A>(self, connection_consumer_factory: G)
+    pub fn run<N, F>(self, node_factory: F)
         where
-            A: Future<Item=(), Error=()> + Send + 'static,
-            F: Fn(MPSCConnection<M>) -> A + Sync + Send + 'static,
-            G: Fn() -> F + Sync + Send + 'static
+            N: Node<M> + Sync + Send + 'static,
+            F: Fn() -> N + Send + 'static
     {
         let nodes = self.transports;
         let handle = thread::spawn(move ||{
@@ -74,10 +79,12 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             let nodes_future = receiver
                 .for_each(move |transport|{
                     info!("Starting a new node.");
-                    let connection_consumer = connection_consumer_factory();
+                    let node = Arc::new(node_factory());
+
+                    let node_clone = node.clone();
                     let node_future = transport.run()
                         .for_each(move |connection|{
-                            tokio::spawn(connection_consumer(connection));
+                            node_clone.on_new_connection(connection);
                             future::ok(())
                         })
                         .then(|_|{
@@ -87,6 +94,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                         .map_err(|()|{});
                     tokio::spawn(node_future);
 
+                    node.on_start();
                     future::ok(())
                 })
             ;
@@ -154,41 +162,61 @@ impl <T> BiSet<T> where T: Hash + Ord{
 #[cfg(test)]
 mod tests{
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
     use std::time::Duration;
     use super::*;
 
     #[derive(Clone, Debug)]
     pub struct Message{}
 
+    pub struct TestNode{
+        received_messages: Arc<AtomicUsize>,
+        notified_of_start: Arc<AtomicBool>,
+    }
+
+    impl Node<Message> for TestNode{
+        fn on_new_connection(&self, connection: MPSCConnection<Message>) {
+            let received_messages = self.received_messages.clone();
+            let (sender, receiver) = connection.split();
+
+            // Send one message per connection received for each node.
+            send_or_panic(&sender, Message{});
+
+            let reception = receiver
+                .for_each(move |_message|{
+                    println!("Message received.");
+                    received_messages.fetch_add(1, Ordering::Relaxed);
+                    future::ok(())
+                })
+                .map_err(|_|{
+                    panic!()
+                });
+            tokio::spawn(reception);
+        }
+
+        fn on_start(&self) {
+            self.notified_of_start.store(true, Ordering::Relaxed)
+        }
+    }
+
     #[test]
     fn can_create_a_network(){
         let network = Network::new(4, 1);
 
         let global_number_of_received_messages = Arc::new(AtomicUsize::new(0));
-        let received_messages = global_number_of_received_messages.clone();
+        let notified_of_start = Arc::new(AtomicBool::new(false));
+
+        let received_messages_clone = global_number_of_received_messages.clone();
+        let notified_of_start_clone = notified_of_start.clone();
         network.run(move ||{
-            let received_messages = received_messages.clone();
-            move |connection|{
-                let received_messages = received_messages.clone();
-                let (sender, receiver) = connection.split();
-
-                // Send one message per connection received for each node.
-                send_or_panic(&sender, Message{});
-
-                receiver
-                    .for_each(move |_message|{
-                        println!("Message received.");
-                        received_messages.fetch_add(1, Ordering::Relaxed);
-                        future::ok(())
-                    })
-                    .map_err(|_|{
-                        panic!()
-                    })
+            TestNode{
+                received_messages: received_messages_clone.clone(),
+                notified_of_start: notified_of_start_clone.clone(),
             }
         });
 
         thread::sleep(Duration::from_millis(1000));
-        assert_eq!(8, global_number_of_received_messages.load(Ordering::Relaxed))
+        assert_eq!(8, global_number_of_received_messages.load(Ordering::Relaxed));
+        assert!(notified_of_start.load(Ordering::Relaxed));
     }
 }
