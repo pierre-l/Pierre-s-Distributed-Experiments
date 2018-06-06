@@ -53,9 +53,9 @@ impl Node<Message> for PowNode{
         tokio::spawn(reception);
     }
 
-    fn on_start(&self) {
+    fn on_start(&mut self) {
         let mining_future = mine(self.node_id, self.initial_chain.clone())
-            .for_each(|chain|{
+            .for_each(|_chain|{
                 future::ok(())
             })
         ;
@@ -72,7 +72,7 @@ fn main() {
     }
 
     let chain = Arc::new(Chain::init_new(difficulty));
-    let mut node_id = AtomicUsize::new(0);
+    let node_id = AtomicUsize::new(0);
 
     let network = Network::new(10, 2);
     network.run(move ||{

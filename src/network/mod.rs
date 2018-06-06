@@ -15,7 +15,7 @@ use tokio;
 
 pub trait Node<M>{
     fn on_new_connection(&self, connection: MPSCConnection<M>);
-    fn on_start(&self);
+    fn on_start(&mut self);
 }
 
 pub mod transport;
@@ -79,9 +79,10 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             let nodes_future = receiver
                 .for_each(move |transport|{
                     info!("Starting a new node.");
-                    let node = Arc::new(node_factory());
-
+                    let mut node = node_factory();
                     node.on_start();
+
+                    let node = Arc::new(node);
 
                     let node_future = transport.run()
                         .for_each(move |connection|{
@@ -194,7 +195,7 @@ mod tests{
             tokio::spawn(reception);
         }
 
-        fn on_start(&self) {
+        fn on_start(&mut self) {
             self.notified_of_start.store(true, Ordering::Relaxed)
         }
     }
