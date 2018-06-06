@@ -1,11 +1,9 @@
-use futures::future;
 use futures::sync::mpsc::{self, UnboundedSender, UnboundedReceiver};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 use futures::Stream;
 use futures::Future;
-use tokio;
 
 #[derive(Debug)]
 enum TransportMessage<M> {

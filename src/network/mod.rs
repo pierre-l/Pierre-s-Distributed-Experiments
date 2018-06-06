@@ -104,7 +104,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             drop(sender);
         });
 
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(60000));
 
         drop(handle);
     }
@@ -215,7 +215,7 @@ mod tests{
             }
         });
 
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(2000));
         assert_eq!(8, global_number_of_received_messages.load(Ordering::Relaxed));
         assert!(notified_of_start.load(Ordering::Relaxed));
     }

@@ -1,28 +1,36 @@
-#[macro_use] extern crate log;
 extern crate env_logger;
 extern crate futures;
-extern crate tokio;
+#[macro_use] extern crate log;
 extern crate rand;
 extern crate ring;
+extern crate tokio;
+extern crate tokio_timer;
+
+use blockchain::{Chain, Difficulty, mine};
+use futures::{future, Future, Stream};
+use network::{MPSCConnection, Network, Node};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::thread;
+use std::time::Duration;
 
 mod network;
 mod blockchain;
-
-use network::{Network, Node, MPSCConnection};
-use futures::{future, Stream, Future};
-use std::thread;
-use std::time::Duration;
 
 #[derive(Clone)]
 pub struct Message{}
 
 pub struct PowNode{
-
+    node_id: u8,
+    initial_chain: Arc<Chain>,
 }
 
 impl PowNode{
-    pub fn new() -> PowNode{
-        PowNode{}
+    pub fn new(node_id: u8, initial_chain: Arc<Chain>,) -> PowNode{
+        PowNode{
+            node_id,
+            initial_chain,
+        }
     }
 }
 
@@ -45,14 +53,32 @@ impl Node<Message> for PowNode{
         tokio::spawn(reception);
     }
 
-    fn on_start(&self) {}
+    fn on_start(&self) {
+        let mining_future = mine(self.node_id, self.initial_chain.clone())
+            .for_each(|chain|{
+                future::ok(())
+            })
+        ;
+        tokio::spawn(mining_future);
+    }
 }
 
 fn main() {
     env_logger::init();
 
-    let network = Network::new(10, 1);
-    network.run(PowNode::new);
+    let mut difficulty = Difficulty::min_difficulty();
+    for _i in 0..10{
+        difficulty.increase();
+    }
+
+    let chain = Arc::new(Chain::init_new(difficulty));
+    let mut node_id = AtomicUsize::new(0);
+
+    let network = Network::new(10, 2);
+    network.run(move ||{
+        let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
+        PowNode::new(node_id, chain.clone())
+    });
 
     thread::sleep(Duration::from_millis(1000));
 }

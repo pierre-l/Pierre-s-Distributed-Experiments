@@ -1,10 +1,13 @@
 mod pow;
+mod miner;
 
 use std::u8::MAX as U8_MAX;
-use std::rc::Rc;
-use blockchain::pow::{Difficulty, Hash, Nonce};
+use std::sync::Arc;
+use blockchain::pow::{Hash, Nonce};
+pub use blockchain::miner::mine;
+pub use blockchain::pow::Difficulty;
 
-struct Block{
+pub struct Block{
     node_id: u8,
     nonce: Nonce,
     hash: Hash,
@@ -34,7 +37,7 @@ impl Block{
         }
     }
 
-    pub fn is_valid(&self, difficulty: &Rc<Difficulty>) -> bool {
+    pub fn is_valid(&self, difficulty: &Arc<Difficulty>) -> bool {
         if self.hash.less_than(difficulty) {
             let hash = Hash::new(self.node_id, &self.nonce);
 
@@ -49,10 +52,10 @@ impl Block{
     }
 }
 
-struct Chain{
+pub struct Chain{
     head: Block,
-    tail: Option<Rc<Chain>>,
-    difficulty: Rc<Difficulty>,
+    tail: Option<Arc<Chain>>,
+    difficulty: Arc<Difficulty>,
     height: usize,
 }
 
@@ -61,24 +64,24 @@ impl Chain{
         Chain{
             head: Block::genesis_block(),
             tail: None,
-            difficulty: Rc::new(difficulty),
+            difficulty: Arc::new(difficulty),
             height: 0,
         }
     }
 
-    pub fn expand(chain: Rc<Chain>, block: Block) -> Result<Rc<Chain>, Rc<Chain>> {
+    pub fn expand(chain: &Arc<Chain>, block: Block) -> Result<Arc<Chain>, ()> {
         if Chain::hashes_match(&chain, &block)
             && block.is_valid(&chain.difficulty) {
             let new_chain = Chain {
                 head: block,
                 difficulty: chain.difficulty.clone(),
                 height: chain.height + 1,
-                tail: Some(chain),
+                tail: Some(chain.clone()),
             };
 
-            Ok(Rc::new(new_chain))
+            Ok(Arc::new(new_chain))
         } else {
-            Err(chain)
+            Err(())
         }
     }
 
@@ -86,7 +89,11 @@ impl Chain{
         &self.head
     }
 
-    fn hashes_match(chain: &Rc<Chain>, block: &Block) -> bool {
+    pub fn height(&self) -> &usize {
+        &self.height
+    }
+
+    fn hashes_match(chain: &Arc<Chain>, block: &Block) -> bool {
         chain.head.hash.eq(&block.previous_block_hash)
     }
 }
@@ -102,7 +109,7 @@ mod tests {
         difficulty.increase();
 
         let chain = Chain::init_new(difficulty);
-        let mut chain = Rc::new(chain);
+        let mut chain = Arc::new(chain);
 
         let node_id = 1;
         let mut nonce = Nonce::new();
@@ -110,14 +117,20 @@ mod tests {
         while {
             nonce.increment();
             let block = Block::new(node_id, nonce.clone(), chain.head().hash().clone());
-            chain = match Chain::expand(chain, block){
+
+            let new_chain = match Chain::expand(&chain, block){
                 Ok(chain) => {
-                    chain
+                    Some(chain)
                 },
-                Err(chain) => {
-                    chain
+                Err(()) => {
+                    None
                 }
             };
+
+            if let Some(new_chain) = new_chain {
+                chain = new_chain;
+            }
+
             chain.height < 5
         } {}
     }
