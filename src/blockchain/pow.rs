@@ -2,6 +2,7 @@ use ring::digest::{self, Digest, SHA256, SHA256_OUTPUT_LEN};
 use std::cmp::Ordering;
 use std::u8::MAX as U8_MAX;
 
+#[derive(Clone, Debug)]
 pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
 impl Difficulty{
