@@ -13,7 +13,7 @@ struct Block{
 
 impl Block{
     pub fn new(node_id: u8, nonce: Nonce, previous_block_hash: Hash) -> Block {
-        let hash = Hash::new(1, &nonce);
+        let hash = Hash::new(node_id, &nonce);
         Block{
             node_id,
             nonce,
@@ -24,9 +24,10 @@ impl Block{
 
     pub fn genesis_block() -> Block {
         let nonce = Nonce::new();
-        let hash = Hash::new(1, &nonce);
+        let genesis_node_id = U8_MAX;
+        let hash = Hash::new(genesis_node_id, &nonce);
         Block{
-            node_id: U8_MAX,
+            node_id: genesis_node_id,
             nonce,
             previous_block_hash: hash.clone(),
             hash,
