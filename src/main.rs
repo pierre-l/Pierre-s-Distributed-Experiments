@@ -6,7 +6,7 @@ extern crate ring;
 extern crate tokio;
 extern crate tokio_timer;
 
-use blockchain::{Chain, Difficulty, mine};
+use blockchain::{Chain, Difficulty, mining_stream};
 use futures::{future, Future, Stream};
 use network::{MPSCConnection, Network, Node};
 use std::sync::Arc;
@@ -54,12 +54,13 @@ impl Node<Message> for PowNode{
     }
 
     fn on_start(&mut self) {
-        let mining_future = mine(self.node_id, self.initial_chain.clone())
+        let (mining_stream, updater) = mining_stream(self.node_id, self.initial_chain.clone());
+
+        tokio::spawn(mining_stream
             .for_each(|_chain|{
                 future::ok(())
             })
-        ;
-        tokio::spawn(mining_future);
+        );
     }
 }
 

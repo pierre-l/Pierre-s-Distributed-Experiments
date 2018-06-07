@@ -4,7 +4,7 @@ mod miner;
 use std::u8::MAX as U8_MAX;
 use std::sync::Arc;
 use blockchain::pow::{Hash, Nonce};
-pub use blockchain::miner::mine;
+pub use blockchain::miner::mining_stream;
 pub use blockchain::pow::Difficulty;
 
 pub struct Block{
