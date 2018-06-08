@@ -1,4 +1,3 @@
-use futures::Future;
 use futures::future;
 use futures::Stream;
 use futures::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -10,12 +9,11 @@ use std::collections::HashSet;
 use std::hash::Hash;
 use std::thread;
 use std::time::Duration;
-use std::sync::Arc;
 use tokio;
 
 pub trait Node<M>{
-    fn on_new_connection(&self, connection: MPSCConnection<M>);
-    fn on_start(&mut self);
+    fn run<S>(self, connection_stream: S)
+        where S: Stream<Item=MPSCConnection<M>, Error=()> + Send + 'static;
 }
 
 pub mod transport;
@@ -79,23 +77,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             let nodes_future = receiver
                 .for_each(move |transport|{
                     info!("Starting a new node.");
-                    let mut node = node_factory();
-                    node.on_start();
-
-                    let node = Arc::new(node);
-
-                    let node_future = transport.run()
-                        .for_each(move |connection|{
-                            node.on_new_connection(connection);
-                            future::ok(())
-                        })
-                        .then(|_|{
-                            info!("Node stopped.");
-                            future::ok(())
-                        })
-                        .map_err(|()|{});
-
-                    tokio::spawn(node_future);
+                    node_factory().run(transport.run());
                     future::ok(())
                 })
             ;
@@ -105,7 +87,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             drop(sender);
         });
 
-        thread::sleep(Duration::from_millis(60000));
+        thread::sleep(Duration::from_millis(5000));
 
         drop(handle);
     }
@@ -162,6 +144,7 @@ impl <T> BiSet<T> where T: Hash + Ord{
 
 #[cfg(test)]
 mod tests{
+    use futures::Future;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
     use std::time::Duration;
@@ -176,27 +159,29 @@ mod tests{
     }
 
     impl Node<Message> for TestNode{
-        fn on_new_connection(&self, connection: MPSCConnection<Message>) {
-            let received_messages = self.received_messages.clone();
-            let (sender, receiver) = connection.split();
+        fn run<S>(self, connection_stream: S) where S: Stream<Item=MPSCConnection<Message>, Error=()> + Send + 'static {
+            self.notified_of_start.store(true, Ordering::Relaxed);
 
-            // Send one message per connection received for each node.
-            send_or_panic(&sender, Message{});
+            let connection_future = connection_stream.for_each(move |connection|{
+                let received_messages = self.received_messages.clone();
+                let (sender, receiver) = connection.split();
 
-            let reception = receiver
-                .for_each(move |_message|{
-                    println!("Message received.");
-                    received_messages.fetch_add(1, Ordering::Relaxed);
-                    future::ok(())
-                })
-                .map_err(|_|{
-                    panic!()
-                });
-            tokio::spawn(reception);
-        }
+                // Send one message per connection received for each node.
+                send_or_panic(&sender, Message{});
 
-        fn on_start(&mut self) {
-            self.notified_of_start.store(true, Ordering::Relaxed)
+                let reception = receiver
+                    .for_each(move |_message|{
+                        println!("Message received.");
+                        received_messages.fetch_add(1, Ordering::Relaxed);
+                        future::ok(())
+                    })
+                    .map_err(|_|{
+                        panic!()
+                    });
+                tokio::spawn(reception)
+            });
+
+            tokio::spawn(connection_future);
         }
     }
 

@@ -35,31 +35,37 @@ impl PowNode{
 }
 
 impl Node<Message> for PowNode{
-    fn on_new_connection(&self, connection: MPSCConnection<Message>) {
-        info!("Connection received.");
-        let (sender, receiver) = connection.split();
-
-        network::transport::send_or_panic(&sender, Message{});
-
-        let reception = receiver
-            .for_each(|_message|{
-                info!("Message received.");
-                future::ok(())
-            })
-            .map_err(|_|{
-                panic!()
-            });
-
-        tokio::spawn(reception);
-    }
-
-    fn on_start(&mut self) {
+    fn run<S>(self, connection_stream: S)
+        where S: Stream<Item=MPSCConnection<Message>, Error=()> + Send + 'static {
         let (mining_stream, updater) = mining_stream(self.node_id, self.initial_chain.clone());
 
-        tokio::spawn(mining_stream
+        let mining_future = mining_stream
             .for_each(|_chain|{
                 future::ok(())
-            })
+            });
+
+        let connection_future = connection_stream
+            .for_each(|connection|{
+                info!("Connection received.");
+                let (sender, receiver) = connection.split();
+
+                network::transport::send_or_panic(&sender, Message{});
+
+                let reception = receiver
+                    .for_each(|_message|{
+                        info!("Message received.");
+                        future::ok(())
+                    })
+                    .map_err(|_|{
+                        panic!()
+                    });
+
+                tokio::spawn(reception)
+            });
+
+        tokio::spawn(
+            mining_future.join(connection_future)
+                .map(|_|{()})
         );
     }
 }
