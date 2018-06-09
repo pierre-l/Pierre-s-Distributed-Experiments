@@ -23,7 +23,7 @@ pub struct Network<M> where M: Clone + Send + 'static{
 }
 
 impl <M> Network<M> where M: Clone + Send + 'static{
-    pub fn new(size: usize, average_number_of_connections_per_node: usize)
+    pub fn new(size: usize, initiated_connections_per_node: usize)
         -> Network<M> where M: Clone + Send + 'static
     {
         let mut transports = vec![];
@@ -49,7 +49,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                 }
             }
 
-            for _i in 0..average_number_of_connections_per_node/2 + 1 {
+            for _i in 0..initiated_connections_per_node {
                 let pool_not_empty = candidate_addresses.len() > 0;
                 if pool_not_empty {
                     let seed_index = transports.random_different_address(&candidate_addresses);
@@ -57,6 +57,8 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                     let seed_address = candidate_addresses.remove(seed_index);
                     defined_connections.insert(*seed_address.id(), node_address_id);
                     transports.include_seed(seed_address);
+                } else {
+                    debug!("Empty pool.");
                 }
             }
         }
@@ -155,6 +157,7 @@ mod tests{
 
     pub struct TestNode{
         received_messages: Arc<AtomicUsize>,
+        connections_established: Arc<AtomicUsize>,
         notified_of_start: Arc<AtomicBool>,
     }
 
@@ -163,6 +166,7 @@ mod tests{
             self.notified_of_start.store(true, Ordering::Relaxed);
 
             let connection_future = connection_stream.for_each(move |connection|{
+                self.connections_established.fetch_add(1, Ordering::Relaxed);
                 let received_messages = self.received_messages.clone();
                 let (sender, receiver) = connection.split();
 
@@ -171,7 +175,6 @@ mod tests{
 
                 let reception = receiver
                     .for_each(move |_message|{
-                        println!("Message received.");
                         received_messages.fetch_add(1, Ordering::Relaxed);
                         future::ok(())
                     })
@@ -187,22 +190,34 @@ mod tests{
 
     #[test]
     fn can_create_a_network(){
-        let network = Network::new(4, 1);
+        new_network_test(4, 1);
+        new_network_test(8, 2);
+        new_network_test(8, 1);
+    }
+
+    fn new_network_test(network_size: usize, initiated_connections: usize) {
+        let network = Network::new(network_size, initiated_connections);
 
         let global_number_of_received_messages = Arc::new(AtomicUsize::new(0));
         let notified_of_start = Arc::new(AtomicBool::new(false));
+        let connections_established = Arc::new(AtomicUsize::new(0));
 
         let received_messages_clone = global_number_of_received_messages.clone();
         let notified_of_start_clone = notified_of_start.clone();
-        network.run(move ||{
-            TestNode{
+        let connections_established_clone = connections_established.clone();
+
+        network.run(move || {
+            TestNode {
                 received_messages: received_messages_clone.clone(),
                 notified_of_start: notified_of_start_clone.clone(),
+                connections_established: connections_established_clone.clone(),
             }
         });
 
-        thread::sleep(Duration::from_millis(2000));
-        assert_eq!(8, global_number_of_received_messages.load(Ordering::Relaxed));
+        thread::sleep(Duration::from_millis(4000));
+
+        assert_eq!(network_size * 2 * initiated_connections, connections_established.load(Ordering::Relaxed));
+        assert_eq!(network_size * 2 * initiated_connections, global_number_of_received_messages.load(Ordering::Relaxed));
         assert!(notified_of_start.load(Ordering::Relaxed));
     }
 }

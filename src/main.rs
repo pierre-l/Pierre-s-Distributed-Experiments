@@ -74,18 +74,16 @@ fn main() {
     env_logger::init();
 
     let mut difficulty = Difficulty::min_difficulty();
-    for _i in 0..10{
+    for _i in 0..8{
         difficulty.increase();
     }
 
     let chain = Arc::new(Chain::init_new(difficulty));
     let node_id = AtomicUsize::new(0);
 
-    let network = Network::new(10, 2);
+    let network = Network::new(3, 1);
     network.run(move ||{
         let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
         PowNode::new(node_id, chain.clone())
     });
-
-    thread::sleep(Duration::from_millis(1000));
 }
