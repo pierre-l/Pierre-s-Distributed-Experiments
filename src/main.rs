@@ -6,6 +6,7 @@ extern crate ring;
 extern crate tokio;
 extern crate tokio_timer;
 
+use futures::sync::mpsc::{self, UnboundedSender};
 use blockchain::{Chain, Difficulty, mining_stream};
 use futures::{future, Future, Stream};
 use network::{MPSCConnection, Network, Node};
@@ -40,7 +41,8 @@ impl Node<Message> for PowNode{
         let (mining_stream, updater) = mining_stream(self.node_id, self.initial_chain.clone());
 
         let mining_future = mining_stream
-            .for_each(|_chain|{
+            .for_each(move |chain|{
+                updater.mine_new_chain(chain);
                 future::ok(())
             });
 
@@ -74,14 +76,14 @@ fn main() {
     env_logger::init();
 
     let mut difficulty = Difficulty::min_difficulty();
-    for _i in 0..8{
+    for _i in 0..10{
         difficulty.increase();
     }
 
     let chain = Arc::new(Chain::init_new(difficulty));
     let node_id = AtomicUsize::new(0);
 
-    let network = Network::new(3, 1);
+    let network = Network::new(4, 1);
     network.run(move ||{
         let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
         PowNode::new(node_id, chain.clone())

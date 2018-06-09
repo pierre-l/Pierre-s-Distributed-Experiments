@@ -34,7 +34,7 @@ impl MiningStateUpdater {
         }
     }
 
-    pub fn notify_of_new_chain(&self, new_chain: Arc<Chain>){
+    pub fn mine_new_chain(&self, new_chain: Arc<Chain>){
         if let Err(_err) = self.sender.unbounded_send(new_chain){
             panic!("Could not notify of new chain: {}", _err)
         }
@@ -49,7 +49,6 @@ pub fn mining_stream(node_id: u8, chain: Arc<Chain>)
 
     let mining_state_updater = MiningStateUpdater::new(updater_sender);
 
-    let updater_clone = mining_state_updater.clone();
     let mining_stream = updater_receiver
         // Merging both streams avoids the need of locking on the state by doing everything sequentially.
         .map(|chain_update|{Some(chain_update)})
@@ -57,12 +56,16 @@ pub fn mining_stream(node_id: u8, chain: Arc<Chain>)
         // Now we can mine or update the state.
         .map(move |chain_update_option|{
             if let Some(chain_update) = chain_update_option{
-                state.chain = chain_update.clone();
-                state.nonce = Nonce::new();
+                if state.chain.height() < chain_update.height() {
+                    state.chain = chain_update.clone();
+                    state.nonce = Nonce::new();
+
+                }
 
                 None
+
             } else {
-                match mine(&mut state, &updater_clone){
+                match mine(&mut state){
                     MiningResult::Success(mined_new_chain) => {
                         Some(mined_new_chain)
                     }
@@ -93,7 +96,7 @@ enum MiningResult{
     Failure,
 }
 
-fn mine(state: &mut MiningState, updater: &MiningStateUpdater) -> MiningResult{
+fn mine(state: &mut MiningState) -> MiningResult{
     state.nonce.increment();
 
     let head_hash = state.chain.head().hash().clone();
@@ -102,7 +105,6 @@ fn mine(state: &mut MiningState, updater: &MiningStateUpdater) -> MiningResult{
     match Chain::expand(&state.chain, block){
         Ok(mined_chain) => {
             info!("[N#{}] Mined new block with height: {}", state.node_id, mined_chain.height);
-            updater.notify_of_new_chain(mined_chain.clone());
             MiningResult::Success(mined_chain)
         },
         Err(()) => {
