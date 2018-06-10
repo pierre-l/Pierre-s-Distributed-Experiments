@@ -47,7 +47,7 @@ impl Hash{
         data_to_hash[8] = node_id;
 
         for i in 0..SHA256_OUTPUT_LEN{
-            data_to_hash[i+8] = previous_hash[i];
+            data_to_hash[i+9] = previous_hash[i];
         }
 
         let digest = digest::digest(&SHA256, &data_to_hash);
@@ -119,8 +119,6 @@ mod tests {
 
     #[test]
     fn min_difficulty_allows_any_hash() {
-        env_logger::init();
-
         let difficulty = Difficulty::min_difficulty();
 
         let mut nonce = Nonce::new();

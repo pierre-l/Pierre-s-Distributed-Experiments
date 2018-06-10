@@ -59,7 +59,6 @@ pub fn mining_stream(node_id: u8, chain: Arc<Chain>)
                 if state.chain.height() < chain_update.height() {
                     state.chain = chain_update.clone();
                     state.nonce = Nonce::new();
-
                 }
 
                 None
@@ -104,11 +103,11 @@ fn mine(state: &mut MiningState) -> MiningResult{
 
     match Chain::expand(&state.chain, block){
         Ok(mined_chain) => {
-            info!("[N#{}] Mined new block with height: {}", state.node_id, mined_chain.height);
+            debug!("[N#{}] Mined new block with height: {}", state.node_id, mined_chain.height);
             MiningResult::Success(mined_chain)
         },
         Err(()) => {
-            debug!("[N#{}] Failed to mine a new block", state.node_id);
+            debug!("[N#{}] Failed to mine a new block for height {}", state.node_id, state.chain.height() + 1);
             MiningResult::Failure
         }
     }
