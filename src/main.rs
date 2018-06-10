@@ -70,13 +70,6 @@ impl Node<Arc<Chain>> for PowNode{
         let (aggregation_sender, aggregation_receiver) = mpsc::unbounded();
 
         let aggregation_sender_clone = aggregation_sender.clone();
-        let mining_future = mining_stream
-            .for_each(move |chain|{
-                send_or_panic(&aggregation_sender_clone, EitherPeerOrChain::MinedChain(chain));
-                future::ok(())
-            });
-
-        let aggregation_sender_clone = aggregation_sender.clone();
         let connection_future = connection_stream
             .for_each(move |connection|{
                 info!("Connection received.");
@@ -103,6 +96,12 @@ impl Node<Arc<Chain>> for PowNode{
 
         let mut peers = vec![];
         let routing_future = aggregation_receiver
+            .select(
+                mining_stream
+                    .map(move |chain|{
+                        EitherPeerOrChain::MinedChain(chain)
+                    })
+            )
             .for_each(move |either_peer_or_chain|{
                 match either_peer_or_chain{
                     EitherPeerOrChain::Peer(peer) => {
@@ -124,7 +123,6 @@ impl Node<Arc<Chain>> for PowNode{
 
         tokio::spawn(
             future::ok(())
-                .join(mining_future)
                 .join(connection_future)
                 .join(routing_future)
                 .map(|_|{()})
