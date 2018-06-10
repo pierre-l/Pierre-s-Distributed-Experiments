@@ -4,7 +4,8 @@ mod miner;
 use std::u8::MAX as U8_MAX;
 use std::sync::Arc;
 use blockchain::pow::{Hash, Nonce};
-pub use blockchain::miner::mining_stream;
+use ring::digest::SHA256_OUTPUT_LEN;
+pub use blockchain::miner::{mining_stream, MiningStateUpdater};
 pub use blockchain::pow::Difficulty;
 
 pub struct Block{
@@ -16,7 +17,7 @@ pub struct Block{
 
 impl Block{
     pub fn new(node_id: u8, nonce: Nonce, previous_block_hash: Hash) -> Block {
-        let hash = Hash::new(node_id, &nonce);
+        let hash = Hash::new(node_id, &nonce, previous_block_hash.bytes());
         Block{
             node_id,
             nonce,
@@ -28,7 +29,7 @@ impl Block{
     pub fn genesis_block() -> Block {
         let nonce = Nonce::new();
         let genesis_node_id = U8_MAX;
-        let hash = Hash::new(genesis_node_id, &nonce);
+        let hash = Hash::new(genesis_node_id, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
         Block{
             node_id: genesis_node_id,
             nonce,
@@ -39,7 +40,7 @@ impl Block{
 
     pub fn is_valid(&self, difficulty: &Arc<Difficulty>) -> bool {
         if self.hash.less_than(difficulty) {
-            let hash = Hash::new(self.node_id, &self.nonce);
+            let hash = Hash::new(self.node_id, &self.nonce, &self.previous_block_hash.bytes());
 
             hash.eq(&self.hash)
         } else {

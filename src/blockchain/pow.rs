@@ -7,8 +7,7 @@ pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
 impl Difficulty{
     pub fn min_difficulty() -> Difficulty{
-        let mut array = [0 as u8; SHA256_OUTPUT_LEN];
-        array[0] = U8_MAX;
+        let mut array = [U8_MAX as u8; SHA256_OUTPUT_LEN];
         Difficulty(array)
     }
 
@@ -38,14 +37,18 @@ pub struct Hash{
 }
 
 impl Hash{
-    pub fn new(node_id: u8, nonce: &Nonce) -> Hash{
-        let mut data_to_hash = [0u8; 9];
+    pub fn new(node_id: u8, nonce: &Nonce, previous_hash: &[u8]) -> Hash{
+        let mut data_to_hash = [0u8; 9 + SHA256_OUTPUT_LEN];
 
         for i in 0..8{
             data_to_hash[i] = nonce.0[i];
         }
 
         data_to_hash[8] = node_id;
+
+        for i in 0..SHA256_OUTPUT_LEN{
+            data_to_hash[i+8] = previous_hash[i];
+        }
 
         let digest = digest::digest(&SHA256, &data_to_hash);
 
@@ -55,10 +58,18 @@ impl Hash{
     }
 
     pub fn less_than(&self, difficulty: &Difficulty) -> bool {
-        let hash = self.digest.as_ref();
+        let hash_bytes = self.bytes();
+        let difficulty_bytes = &difficulty.0;
+
+        debug!("Candidate:  {:?}", hash_bytes);
+        debug!("Difficulty: {:?}", difficulty_bytes);
 
         // Can't use `cmp` between these because the digest's [u8] length.
-        less_than_u8(hash, &difficulty.0)
+        less_than_u8(hash_bytes, difficulty_bytes)
+    }
+
+    pub fn bytes(&self) -> &[u8]{
+        self.digest.as_ref()
     }
 }
 
@@ -108,12 +119,14 @@ mod tests {
 
     #[test]
     fn min_difficulty_allows_any_hash() {
+        env_logger::init();
+
         let difficulty = Difficulty::min_difficulty();
 
         let mut nonce = Nonce::new();
         for _i in 0..100 {
             nonce.increment();
-            let hash = Hash::new(1, &nonce);
+            let hash = Hash::new(1, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
             assert_eq!(true, hash.less_than(&difficulty));
         }
     }
@@ -130,7 +143,7 @@ mod tests {
         let mut nonce = Nonce::new();
         for _i in 0..number_of_tries {
             nonce.increment();
-            let hash = Hash::new(1, &nonce);
+            let hash = Hash::new(1, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
 
             if hash.less_than(&difficulty) {
                 number_of_valid_hashes += 1;
