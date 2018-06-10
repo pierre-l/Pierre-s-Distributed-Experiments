@@ -7,7 +7,7 @@ pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
 impl Difficulty{
     pub fn min_difficulty() -> Difficulty{
-        let mut array = [U8_MAX as u8; SHA256_OUTPUT_LEN];
+        let array = [U8_MAX as u8; SHA256_OUTPUT_LEN];
         Difficulty(array)
     }
 

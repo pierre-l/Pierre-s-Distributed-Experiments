@@ -6,15 +6,13 @@ extern crate ring;
 extern crate tokio;
 extern crate tokio_timer;
 
-use futures::sync::mpsc::{self, UnboundedSender, UnboundedReceiver};
+use futures::sync::mpsc::{self, UnboundedSender};
 use blockchain::{Chain, Difficulty, mining_stream, MiningStateUpdater};
 use futures::{future, Future, Stream};
 use network::{MPSCConnection, Network, Node};
 use network::transport::send_or_panic;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
-use std::time::Duration;
 
 mod network;
 mod blockchain;
