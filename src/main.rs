@@ -70,32 +70,35 @@ impl Node<Arc<Chain>> for PowNode{
         let (aggregation_sender, aggregation_receiver) = mpsc::unbounded();
 
         let aggregation_sender_clone = aggregation_sender.clone();
-        let connection_future = connection_stream
-            .for_each(move |connection|{
+        let peer_stream = connection_stream
+            .map(move |connection|{
                 info!("Connection received.");
                 let (sender, receiver) = connection.split();
 
-                let peer = Peer {
-                    sender,
-                    known_chain_height: 0,
-                };
-                send_or_panic(&aggregation_sender_clone, EitherPeerOrChain::Peer(peer));
-
                 let aggregation_sender_clone = aggregation_sender_clone.clone();
                 let reception = receiver
-                    .for_each(move |chain|{
-                        send_or_panic(&aggregation_sender_clone, EitherPeerOrChain::ChainRemoteUpdate(chain));
+                    .map(|chain|{
+                        EitherPeerOrChain::ChainRemoteUpdate(chain)
+                    })
+                    .for_each(move |either_peer_or_chain|{
+                        send_or_panic(&aggregation_sender_clone, either_peer_or_chain);
                         future::ok(())
                     })
                     .map_err(|_|{
                         panic!()
                     });
-                tokio::spawn(reception)
+                tokio::spawn(reception);
+
+                EitherPeerOrChain::Peer(Peer {
+                    sender,
+                    known_chain_height: 0,
+                })
             })
         ;
 
         let mut peers = vec![];
         let routing_future = aggregation_receiver
+            .select(peer_stream)
             .select(
                 mining_stream
                     .map(move |chain|{
@@ -121,12 +124,7 @@ impl Node<Arc<Chain>> for PowNode{
                 future::ok(())
             });
 
-        tokio::spawn(
-            future::ok(())
-                .join(connection_future)
-                .join(routing_future)
-                .map(|_|{()})
-        );
+        tokio::spawn(routing_future);
     }
 }
 
