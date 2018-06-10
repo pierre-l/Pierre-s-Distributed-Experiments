@@ -19,12 +19,17 @@ use std::time::Duration;
 mod network;
 mod blockchain;
 
+/// Contains a sink to the peer and information about the peer state.
 #[derive(Clone)]
 pub struct Peer{
     sender: UnboundedSender<Arc<Chain>>,
     known_chain_height: usize,
 }
 
+/// Represents the kind of events that can happen in a Proof of Work
+/// blockchain node.
+/// This enum helps us manipulate everything in the same stream, avoiding
+/// concurrency issues, locking and lifetime management.
 pub enum EitherPeerOrChain{
     Peer(Peer),
     MinedChain(Arc<Chain>),
@@ -44,6 +49,9 @@ impl PowNode{
         }
     }
 
+    /// Propagates the new chain to peers and to the mining stream.
+    /// The propagation only happens if the update is a chain with a higher
+    /// height than the known height of either the peer or the mining stream.
     fn propagate(&mut self, chain: Arc<Chain>, peers: &mut Vec<Peer>, mining_state_updater: &MiningStateUpdater) {
         let chain_height = *chain.height();
 
@@ -67,21 +75,22 @@ impl Node<Arc<Chain>> for PowNode{
         where S: Stream<Item=MPSCConnection<Arc<Chain>>, Error=()> + Send + 'static {
         let (mining_stream, updater) = mining_stream(self.node_id, self.chain.clone());
 
-        let (aggregation_sender, aggregation_receiver) = mpsc::unbounded();
+        // This channel is just here to help us merge the updates sent by peers with other streams.
+        // Ideally, the Stream::flatten method would be cleaner and more efficient but I can't make it work.
+        let (remote_update_sender, remote_update_receiver) = mpsc::unbounded();
 
-        let aggregation_sender_clone = aggregation_sender.clone();
         let peer_stream = connection_stream
             .map(move |connection|{
                 info!("Connection received.");
                 let (sender, receiver) = connection.split();
 
-                let aggregation_sender_clone = aggregation_sender_clone.clone();
+                let remote_update_sender = remote_update_sender.clone();
                 let reception = receiver
                     .map(|chain|{
                         EitherPeerOrChain::ChainRemoteUpdate(chain)
                     })
                     .for_each(move |either_peer_or_chain|{
-                        send_or_panic(&aggregation_sender_clone, either_peer_or_chain);
+                        send_or_panic(&remote_update_sender, either_peer_or_chain);
                         future::ok(())
                     })
                     .map_err(|_|{
@@ -96,8 +105,10 @@ impl Node<Arc<Chain>> for PowNode{
             })
         ;
 
+        // Joining all these streams helps us avoid concurrency issues, the use of locking and
+        // complicated lifetime management.
         let mut peers = vec![];
-        let routing_future = aggregation_receiver
+        let routing_future = remote_update_receiver
             .select(peer_stream)
             .select(
                 mining_stream
@@ -131,6 +142,7 @@ impl Node<Arc<Chain>> for PowNode{
 fn main() {
     env_logger::init();
 
+    // Set up a chain.
     let mut difficulty = Difficulty::min_difficulty();
     for _i in 0..7{
         difficulty.increase();
@@ -139,6 +151,7 @@ fn main() {
     let chain = Arc::new(Chain::init_new(difficulty));
     let node_id = AtomicUsize::new(0);
 
+    // Run the blockchain network.
     let network = Network::new(8, 2);
     network.run(move ||{
         let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
