@@ -26,6 +26,7 @@ impl Block{
         }
     }
 
+    /// The genesis block is the first block of the chain. It is the same for all nodes.
     pub fn genesis_block() -> Block {
         let nonce = Nonce::new();
         let genesis_node_id = U8_MAX;
@@ -60,6 +61,10 @@ pub struct Chain{
     height: usize,
 }
 
+const CHAIN_ERROR_HASH_MISMATCH: &str = "Hash mismatch";
+const CHAIN_ERROR_INVALID_GENESIS: &str = "Invalid genesis";
+const CHAIN_ERROR_INVALID_HEAD: &str = "Invalid head";
+
 impl Chain{
     pub fn init_new(difficulty: Difficulty) -> Chain{
         Chain{
@@ -70,6 +75,8 @@ impl Chain{
         }
     }
 
+    /// Creates a new chain by adding a block to an existing chain.
+    /// Will fail if the block is invalid or the hashes do not match.
     pub fn expand(chain: &Arc<Chain>, block: Block) -> Result<Arc<Chain>, ()> {
         if Chain::hashes_match(&chain, &block)
             && block.is_valid(&chain.difficulty) {
@@ -86,16 +93,54 @@ impl Chain{
         }
     }
 
+    /// The head of the chain is the block at the top of it.
     pub fn head(&self) -> &Block {
         &self.head
     }
 
+    /// The height of the chain is the number of blocks composing the chain.
+    /// It is the same that the heigh of the head block.
     pub fn height(&self) -> &usize {
         &self.height
     }
 
     fn hashes_match(chain: &Arc<Chain>, block: &Block) -> bool {
         chain.head.hash.eq(&block.previous_block_hash)
+    }
+
+    /// Checks that the chain is valid from head to tail and that it starts from the genesis block.
+    /// The current implementation is not the most efficient but is efficient enough
+    /// for this simulation.
+    pub fn validate(&self) -> Result<(), &'static str>{
+        if let Err(err) = self.validate_head(){
+            return Err(err)
+        }
+
+        if let &Some(ref tail) = &self.tail{
+            Chain::validate(tail)
+        } else {
+            if self.head.hash().eq(Block::genesis_block().hash()) {
+                Ok(())
+            } else {
+                Err(CHAIN_ERROR_INVALID_GENESIS)
+            }
+        }
+    }
+
+    fn validate_head(&self) -> Result<(), &'static str>{
+        if let &Some(ref tail) = &self.tail{
+            if self.head.is_valid(&self.difficulty) {
+                if Chain::hashes_match(tail, &self.head){
+                    Ok(())
+                } else {
+                    Err(CHAIN_ERROR_HASH_MISMATCH)
+                }
+            } else {
+                Err(CHAIN_ERROR_INVALID_HEAD)
+            }
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -134,5 +179,7 @@ mod tests {
 
             chain.height < 5
         } {}
+
+        assert!(chain.validate().is_ok())
     }
 }

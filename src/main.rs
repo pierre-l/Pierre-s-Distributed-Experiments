@@ -73,7 +73,7 @@ impl Node<Arc<Chain>> for PowNode{
         where S: Stream<Item=MPSCConnection<Arc<Chain>>, Error=()> + Send + 'static {
         let (mining_stream, updater) = mining_stream(self.node_id, self.chain.clone());
 
-        // This channel is just here to help us merge the updates sent by peers with other streams.
+        // This channel is just here to help us merge the stream of updates sent by the peers with other streams.
         // Ideally, the Stream::flatten method would be cleaner and more efficient but I can't make it work.
         let (remote_update_sender, remote_update_receiver) = mpsc::unbounded();
 
@@ -126,7 +126,11 @@ impl Node<Arc<Chain>> for PowNode{
                         self.propagate(chain, &mut peers, &updater);
                     },
                     EitherPeerOrChain::ChainRemoteUpdate(chain) => {
-                        self.propagate(chain, &mut peers, &updater);
+                        if chain.validate().is_ok(){
+                            self.propagate(chain, &mut peers, &updater);
+                        } else {
+                            error!("Invalid chain.")
+                        }
                     }
                 }
 
