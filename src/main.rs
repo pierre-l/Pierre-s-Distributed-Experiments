@@ -69,7 +69,7 @@ impl PowNode{
 }
 
 impl Node<Arc<Chain>> for PowNode{
-    fn run<S>(mut self, connection_stream: S)
+    fn run<S>(mut self, connection_stream: S) -> Box<Future<Item=(), Error=()> + Send>
         where S: Stream<Item=MPSCConnection<Arc<Chain>>, Error=()> + Send + 'static {
         let (mining_stream, updater) = mining_stream(self.node_id, self.chain.clone());
 
@@ -137,7 +137,7 @@ impl Node<Arc<Chain>> for PowNode{
                 future::ok(())
             });
 
-        tokio::spawn(routing_future);
+        Box::new(routing_future)
     }
 }
 

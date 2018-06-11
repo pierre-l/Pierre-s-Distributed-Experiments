@@ -1,4 +1,4 @@
-use futures::future;
+use futures::{future, Future};
 use futures::Stream;
 use futures::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 pub use network::transport::{MPSCConnection, send_or_panic};
@@ -12,7 +12,7 @@ use std::time::Duration;
 use tokio;
 
 pub trait Node<M>{
-    fn run<S>(self, connection_stream: S)
+    fn run<S>(self, connection_stream: S) -> Box<Future<Item=(), Error=()> + Send>
         where S: Stream<Item=MPSCConnection<M>, Error=()> + Send + 'static;
 }
 
@@ -79,8 +79,8 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             let nodes_future = receiver
                 .for_each(move |transport|{
                     info!("Starting a new node.");
-                    node_factory().run(transport.run());
-                    future::ok(())
+
+                    tokio::spawn(node_factory().run(transport.run()))
                 })
             ;
 
@@ -149,7 +149,6 @@ mod tests{
     use futures::Future;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
-    use std::time::Duration;
     use super::*;
 
     #[derive(Clone, Debug)]
@@ -162,7 +161,8 @@ mod tests{
     }
 
     impl Node<Message> for TestNode{
-        fn run<S>(self, connection_stream: S) where S: Stream<Item=MPSCConnection<Message>, Error=()> + Send + 'static {
+        fn run<S>(self, connection_stream: S) -> Box<Future<Item=(), Error=()> + Send>
+            where S: Stream<Item=MPSCConnection<Message>, Error=()> + Send + 'static {
             self.notified_of_start.store(true, Ordering::Relaxed);
 
             let connection_future = connection_stream.for_each(move |connection|{
@@ -184,7 +184,7 @@ mod tests{
                 tokio::spawn(reception)
             });
 
-            tokio::spawn(connection_future);
+            Box::new(connection_future)
         }
     }
 
@@ -213,8 +213,6 @@ mod tests{
                 connections_established: connections_established_clone.clone(),
             }
         });
-
-        thread::sleep(Duration::from_millis(4000));
 
         assert_eq!(network_size * 2 * initiated_connections, connections_established.load(Ordering::Relaxed));
         assert_eq!(network_size * 2 * initiated_connections, global_number_of_received_messages.load(Ordering::Relaxed));
