@@ -1,5 +1,5 @@
 [package]
-name = "blockchain_51_simulation"
+name = "blockchain_network_simulation"
 version = "0.1.0"
 authors = ["pierre-l <pierre.larger@gmail.com>"]
 
