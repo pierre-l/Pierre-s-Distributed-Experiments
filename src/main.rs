@@ -10,7 +10,6 @@ use futures::sync::mpsc::UnboundedSender;
 use blockchain::{Chain, Difficulty, mining_stream, MiningStateUpdater};
 use futures::{future, Future, Stream};
 use network::{MPSCConnection, Network, Node};
-use network::transport::send_or_panic;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -24,6 +23,7 @@ mod flattenselect;
 pub struct Peer{
     sender: UnboundedSender<Arc<Chain>>,
     known_chain_height: usize,
+    is_closed: bool,
 }
 
 /// Represents the kind of events that can happen in a Proof of Work
@@ -55,12 +55,26 @@ impl PowNode{
     fn propagate(&mut self, chain: Arc<Chain>, peers: &mut Vec<Peer>, mining_state_updater: &MiningStateUpdater) {
         let chain_height = *chain.height();
 
-        for mut peer in &mut peers.iter_mut(){
-            if chain_height > peer.known_chain_height {
-                network::transport::send_or_panic(&peer.sender, chain.clone());
-                peer.known_chain_height = chain_height;
-            }
-        }
+        peers
+            .iter_mut()
+            .for_each(|peer|{
+                if chain_height > peer.known_chain_height {
+                    match &peer.sender.unbounded_send(chain.clone()){
+                        Ok(()) => {
+                            peer.known_chain_height = chain_height;
+                        }
+                        Err(err) => {
+                            info!("Lost connection.");
+                            peer.is_closed = true;
+                        }
+                    }
+                }
+            });
+
+        peers
+            .retain(|peer|{
+                !peer.is_closed
+        });
 
         if chain_height > *self.chain.height() {
             mining_state_updater.mine_new_chain(chain.clone());
@@ -96,6 +110,7 @@ impl Node<Arc<Chain>> for PowNode{
                 futures::stream::once(Ok(EitherPeerOrChain::Peer(Peer {
                     sender,
                     known_chain_height: 0,
+                    is_closed: false,
                 })))
                     .chain(reception)
             })
@@ -116,9 +131,15 @@ impl Node<Arc<Chain>> for PowNode{
             .for_each(move |either_peer_or_chain|{
                 match either_peer_or_chain{
                     EitherPeerOrChain::Peer(peer) => {
-                        send_or_panic(&peer.sender, self.chain.clone());
-                        peers.push(peer);
-                        info!("[#{}] New peer. Total: {}", self.node_id, peers.len());
+                        match &peer.sender.unbounded_send(self.chain.clone()) {
+                            Ok(()) => {
+                                peers.push(peer);
+                                info!("[#{}] New peer. Total: {}", self.node_id, peers.len());
+                            },
+                            Err(err) => {
+                                info!("[#{}] Peer lost", self.node_id);
+                            }
+                        }
                     },
                     EitherPeerOrChain::MinedChain(chain) => {
                         info!("[#{}] Mined new chain with height {}: {:?}", self.node_id, chain.height(), chain.head().hash().bytes());

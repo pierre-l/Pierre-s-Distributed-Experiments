@@ -1,5 +1,5 @@
 use futures::{Future, stream, Stream};
-pub use network::transport::{MPSCConnection, send_or_panic};
+pub use network::transport::MPSCConnection;
 use network::transport::MPSCAddress;
 use network::transport::MPSCTransport;
 use rand::{self, Rng};
@@ -166,7 +166,9 @@ mod tests{
                 let (sender, receiver) = connection.split();
 
                 // Send one message per connection received for each node.
-                send_or_panic(&sender, Message{});
+                if let Err(_err) = &sender.unbounded_send(Message{}){
+                    panic!()
+                }
 
                 let reception = receiver
                     .for_each(move |_message|{
