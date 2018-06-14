@@ -73,7 +73,11 @@ impl PowNode{
 impl Node<Arc<Chain>> for PowNode{
     fn run<S>(mut self, connection_stream: S) -> Box<Future<Item=(), Error=()> + Send>
         where S: Stream<Item=MPSCConnection<Arc<Chain>>, Error=()> + Send + 'static {
-        let (mining_stream, updater) = mining_stream(self.node_id, self.chain.clone());
+        // Start a mining stream.
+        let (
+            mining_stream, // This stream will yield valid blocks.
+            updater// This provides a way to warn the miner that it should mine a new chain
+        ) = mining_stream(self.node_id, self.chain.clone());
 
         let peer_stream = connection_stream
             .map(move |connection|{
@@ -96,13 +100,14 @@ impl Node<Arc<Chain>> for PowNode{
                     .chain(reception)
             })
         ;
+        // Flatten this stream so all incoming traffic is considered a single stream.
         let peer_stream = flattenselect::new(peer_stream);
 
         // Joining all these streams helps us avoid concurrency issues, the use of locking and
         // complicated lifetime management.
         let mut peers = vec![];
         let routing_future = peer_stream
-            .select(
+            .select( // This merges the events coming from peers with the events of new mined nodes.
                 mining_stream
                     .map(move |chain|{
                         EitherPeerOrChain::MinedChain(chain)
