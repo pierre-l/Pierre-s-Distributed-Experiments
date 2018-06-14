@@ -62,7 +62,7 @@ impl PowNode{
             }
         }
 
-        if &chain_height > self.chain.height() {
+        if chain_height > *self.chain.height() {
             mining_state_updater.mine_new_chain(chain.clone());
             self.chain = chain;
             debug!("[#{}] New chain with height: {}", self.node_id, chain_height);

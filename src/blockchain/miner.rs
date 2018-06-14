@@ -83,7 +83,7 @@ pub fn mining_stream(node_id: u8, chain: Arc<Chain>)
 
 fn interval_stream(millis: u64) -> impl Stream<Item=Instant, Error=()> {
     let interval_duration = Duration::from_millis(millis);
-    let start_instant = Instant::now().add(interval_duration.clone());
+    let start_instant = Instant::now().add(interval_duration);
     Interval::new(start_instant, interval_duration)
         .map_err(|timer_err|{
             panic!("Timer error: {}", timer_err)

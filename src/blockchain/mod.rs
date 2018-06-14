@@ -116,19 +116,17 @@ impl Chain{
             return Err(err)
         }
 
-        if let &Some(ref tail) = &self.tail{
+        if let Some(ref tail) = self.tail{
             Chain::validate(tail)
-        } else {
-            if self.head.hash().eq(Block::genesis_block().hash()) {
+        } else if self.head.hash().eq(Block::genesis_block().hash()) {
                 Ok(())
-            } else {
-                Err(CHAIN_ERROR_INVALID_GENESIS)
-            }
+        } else {
+            Err(CHAIN_ERROR_INVALID_GENESIS)
         }
     }
 
     fn validate_head(&self) -> Result<(), &'static str>{
-        if let &Some(ref tail) = &self.tail{
+        if let Some(ref tail) = self.tail{
             if self.head.is_valid(&self.difficulty) {
                 if Chain::hashes_match(tail, &self.head){
                     Ok(())

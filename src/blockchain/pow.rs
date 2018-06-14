@@ -21,7 +21,7 @@ impl Difficulty{
         while self.0[index_to_split] == 0 {
             index_to_split += 1;
         }
-        self.0[index_to_split] = self.0[index_to_split]/2;
+        self.0[index_to_split] /= 2;
 
         if self.0[index_to_split] == 0 {
             let next_index = index_to_split + 1;
@@ -40,15 +40,11 @@ impl Hash{
     pub fn new(node_id: u8, nonce: &Nonce, previous_hash: &[u8]) -> Hash{
         let mut data_to_hash = [0u8; 9 + SHA256_OUTPUT_LEN];
 
-        for i in 0..8{
-            data_to_hash[i] = nonce.0[i];
-        }
+        data_to_hash[..8].clone_from_slice(&nonce.0[..8]);
 
         data_to_hash[8] = node_id;
 
-        for i in 0..SHA256_OUTPUT_LEN{
-            data_to_hash[i+9] = previous_hash[i];
-        }
+        data_to_hash[9..(SHA256_OUTPUT_LEN + 9)].clone_from_slice(&previous_hash[..SHA256_OUTPUT_LEN]);
 
         let digest = digest::digest(&SHA256, &data_to_hash);
 
@@ -87,7 +83,7 @@ fn less_than_u8(one: &[u8], other: &[u8]) -> bool{
 
     while i<len && temp_result==Ordering::Equal {
         temp_result = one[i].cmp(&other[i]);
-        i = i+1;
+        i += 1;
     }
 
     temp_result == Ordering::Less
@@ -108,7 +104,7 @@ impl Nonce{
             self.0[index_to_increment] = 0;
             index_to_increment -= 1;
         }
-        self.0[index_to_increment] = self.0[index_to_increment] +1;
+        self.0[index_to_increment] += 1;
     }
 }
 

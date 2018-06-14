@@ -119,12 +119,10 @@ impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
                 TransportMessage::Ack(address_id, sender) => {
                     debug!("Ack connection from {} to {}", &self_address_id, &address_id);
                     if let Some(receiver) = connections.remove(&address_id){
-                        let connection = MPSCConnection{
+                        MPSCConnection{
                             sender,
                             receiver,
-                        };
-
-                        connection
+                        }
                     } else {
                         panic!("Could not find the connection to acknowledge.")
                     }

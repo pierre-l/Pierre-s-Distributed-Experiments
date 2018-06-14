@@ -118,7 +118,7 @@ impl<S> Stream for FlattenSelect<S>
                 let index = index % children_len;
                 self.last_polled_index = index;
 
-                let mut child = self.children.get_mut(index).unwrap();
+                let mut child = &mut self.children[index];
 
                 match child.poll() {
                     Ok(Async::Ready(None)) => {
@@ -141,8 +141,8 @@ impl<S> Stream for FlattenSelect<S>
             to_remove.sort();
             let _: () = to_remove.iter().rev()
                 .map(|index_to_remove|{
-                    if &self.last_polled_index > index_to_remove {
-                        self.last_polled_index = self.last_polled_index - 1;
+                    if self.last_polled_index > *index_to_remove {
+                        self.last_polled_index -= 1;
                     }
 
                     self.children.remove(*index_to_remove);

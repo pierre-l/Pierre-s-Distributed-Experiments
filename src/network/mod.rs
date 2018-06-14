@@ -49,7 +49,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
             }
 
             for _i in 0..initiated_connections_per_node {
-                let pool_not_empty = candidate_addresses.len() > 0;
+                let pool_not_empty = !candidate_addresses.is_empty();
                 if pool_not_empty {
                     let seed_index = transports.random_different_address(&candidate_addresses);
 
@@ -78,7 +78,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                 info!("Starting a new node.");
 
                 let node_future = node_factory().run(transport.run());
-                tokio::spawn(with_timeout(node_future, for_duration.clone()))
+                tokio::spawn(with_timeout(node_future, for_duration))
             });
 
         tokio::run(
@@ -101,7 +101,7 @@ fn with_timeout<F>(future: F, timeout: Duration) -> impl Future<Item=(), Error=(
 }
 
 impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
-    fn random_different_address(&self, pool: &Vec<MPSCAddress<M>>) -> usize{
+    fn random_different_address(&self, pool: &[MPSCAddress<M>]) -> usize{
         let mut rng = rand::thread_rng();
         rng.gen_range(0, pool.len())
     }
