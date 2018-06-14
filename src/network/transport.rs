@@ -7,13 +7,13 @@ use futures::Stream;
 #[derive(Debug)]
 enum TransportMessage<M> {
     Init(MPSCAddress<M>, UnboundedSender<M>),
-    Ack(usize, UnboundedSender<M>),
+    Ack(u8, UnboundedSender<M>),
 }
 
 #[derive(Clone, Debug)]
 pub struct MPSCAddress<M>{
     transport_sender: UnboundedSender<TransportMessage<M>>,
-    id: usize, // Necessary for PartialEq
+    id: u8, // Necessary for PartialEq
 }
 
 impl <M> Eq for MPSCAddress<M>{
@@ -33,7 +33,7 @@ impl <M> Hash for MPSCAddress<M>{
 }
 
 impl <M> MPSCAddress<M>{
-    pub fn id(&self) -> &usize{
+    pub fn id(&self) -> &u8{
         &self.id
     }
 }
@@ -56,7 +56,7 @@ pub struct MPSCTransport<M> where M: Clone + Send{
 }
 
 impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
-    pub fn new(address_id: usize) -> MPSCTransport<M>{
+    pub fn new(address_id: u8) -> MPSCTransport<M>{
         let (channel_sender, channel_receiver) = mpsc::unbounded();
 
         let address = MPSCAddress{

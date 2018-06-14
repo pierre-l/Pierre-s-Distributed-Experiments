@@ -22,14 +22,14 @@ pub struct Network<M> where M: Clone + Send + 'static{
 }
 
 impl <M> Network<M> where M: Clone + Send + 'static{
-    pub fn new(size: usize, initiated_connections_per_node: usize)
+    pub fn new(size: u8, initiated_connections_per_node: usize)
         -> Network<M> where M: Clone + Send + 'static
     {
         let mut transports = vec![];
         let mut addresses = vec![];
         let mut defined_connections = BiSet::new();
 
-        for i in 0..size {
+        for i in 0u8..size {
             let node = MPSCTransport::new(i);
             addresses.push(node.address().clone());
             transports.push(node);
