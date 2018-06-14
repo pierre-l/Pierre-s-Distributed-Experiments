@@ -1,15 +1,14 @@
-use futures::{future, Future};
-use futures::Stream;
-use futures::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::{Future, stream, Stream};
 pub use network::transport::{MPSCConnection, send_or_panic};
 use network::transport::MPSCAddress;
 use network::transport::MPSCTransport;
 use rand::{self, Rng};
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::thread;
-use std::time::Duration;
+use std::ops::Add;
+use std::time::{Duration, Instant};
 use tokio;
+use tokio_timer::Delay;
 
 pub trait Node<M>{
     fn run<S>(self, connection_stream: S) -> Box<Future<Item=(), Error=()> + Send>
@@ -68,41 +67,37 @@ impl <M> Network<M> where M: Clone + Send + 'static{
         }
     }
 
-    pub fn run<N, F>(self, node_factory: F)
+    pub fn run<N, F>(self, node_factory: F, for_duration: Duration)
         where
             N: Node<M> + Sync + Send + 'static,
             F: Fn() -> N + Send + 'static
     {
         let nodes = self.transports;
-        let handle = thread::spawn(move ||{
-            let (sender, receiver) = stream_of(nodes);
-            let nodes_future = receiver
-                .for_each(move |transport|{
-                    info!("Starting a new node.");
+        let nodes_future = stream::iter_ok(nodes)
+            .for_each(move |transport|{
+                info!("Starting a new node.");
 
-                    tokio::spawn(node_factory().run(transport.run()))
-                })
-            ;
+                let node_future = node_factory().run(transport.run());
+                tokio::spawn(with_timeout(node_future, for_duration.clone()))
+            });
 
-            tokio::run(nodes_future);
-
-            drop(sender);
-        });
-
-        thread::sleep(Duration::from_millis(5000));
-
-        drop(handle);
+        tokio::run(
+            nodes_future
+        );
     }
 }
 
-fn stream_of<T>(vector: Vec<T>) -> (UnboundedSender<T>, UnboundedReceiver<T>) {
-    let (sender, receiver,) = mpsc::unbounded::<T>();
+fn with_timeout<F>(future: F, timeout: Duration) -> impl Future<Item=(), Error=()> where F: Future<Item=(), Error=()>{
+    let delay_future = Delay::new(Instant::now().add(timeout))
+        .map_err(|err|{
+            panic!("Timer error: {}", err)
+        })
+    ;
 
-    for item in vector{
-        transport::send_or_panic(&sender, item);
-    }
-
-    (sender, receiver,)
+    future
+        .select(delay_future)
+        .map(|_|{})
+        .map_err(|_|{})
 }
 
 impl <M> MPSCTransport<M> where M: Clone + Send + 'static{
@@ -146,7 +141,7 @@ impl <T> BiSet<T> where T: Hash + Ord{
 
 #[cfg(test)]
 mod tests{
-    use futures::Future;
+    use futures::{future, Future};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
     use super::*;
@@ -212,7 +207,7 @@ mod tests{
                 notified_of_start: notified_of_start_clone.clone(),
                 connections_established: connections_established_clone.clone(),
             }
-        });
+        }, Duration::from_secs(5));
 
         assert_eq!(network_size * 2 * initiated_connections, connections_established.load(Ordering::Relaxed));
         assert_eq!(network_size * 2 * initiated_connections, global_number_of_received_messages.load(Ordering::Relaxed));

@@ -6,16 +6,18 @@ extern crate ring;
 extern crate tokio;
 extern crate tokio_timer;
 
-use futures::sync::mpsc::{self, UnboundedSender};
+use futures::sync::mpsc::UnboundedSender;
 use blockchain::{Chain, Difficulty, mining_stream, MiningStateUpdater};
 use futures::{future, Future, Stream};
 use network::{MPSCConnection, Network, Node};
 use network::transport::send_or_panic;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 mod network;
 mod blockchain;
+mod flattenselect;
 
 /// Contains a sink to the peer and information about the peer state.
 #[derive(Clone)]
@@ -73,41 +75,33 @@ impl Node<Arc<Chain>> for PowNode{
         where S: Stream<Item=MPSCConnection<Arc<Chain>>, Error=()> + Send + 'static {
         let (mining_stream, updater) = mining_stream(self.node_id, self.chain.clone());
 
-        // This channel is just here to help us merge the stream of updates sent by the peers with other streams.
-        // Ideally, the Stream::flatten method would be cleaner and more efficient but I can't make it work.
-        let (remote_update_sender, remote_update_receiver) = mpsc::unbounded();
-
         let peer_stream = connection_stream
             .map(move |connection|{
                 info!("Connection received.");
                 let (sender, receiver) = connection.split();
 
-                let remote_update_sender = remote_update_sender.clone();
                 let reception = receiver
                     .map(|chain|{
                         EitherPeerOrChain::ChainRemoteUpdate(chain)
                     })
-                    .for_each(move |either_peer_or_chain|{
-                        send_or_panic(&remote_update_sender, either_peer_or_chain);
-                        future::ok(())
-                    })
                     .map_err(|_|{
                         panic!()
                     });
-                tokio::spawn(reception);
 
-                EitherPeerOrChain::Peer(Peer {
+                // Send a peer first, then every update received.
+                futures::stream::once(Ok(EitherPeerOrChain::Peer(Peer {
                     sender,
                     known_chain_height: 0,
-                })
+                })))
+                    .chain(reception)
             })
         ;
+        let peer_stream = flattenselect::new(peer_stream);
 
         // Joining all these streams helps us avoid concurrency issues, the use of locking and
         // complicated lifetime management.
         let mut peers = vec![];
-        let routing_future = remote_update_receiver
-            .select(peer_stream)
+        let routing_future = peer_stream
             .select(
                 mining_stream
                     .map(move |chain|{
@@ -158,5 +152,5 @@ fn main() {
     network.run(move ||{
         let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
         PowNode::new(node_id, chain.clone())
-    });
+    }, Duration::from_secs(15));
 }
