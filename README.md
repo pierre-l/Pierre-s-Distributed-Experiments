@@ -36,4 +36,4 @@ This project is licensed under the MIT license.
 Contribution
 ------------
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Tokio by you, shall be licensed as MIT, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in BNS by you, shall be licensed as MIT, without any additional terms or conditions.
