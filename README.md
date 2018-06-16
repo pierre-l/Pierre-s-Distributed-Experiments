@@ -8,6 +8,9 @@ Status
 
 This is an experimental project. Everything written here was not written for a production environment. Significant API changes are to be expected in the near future.
 
+[![Build Status](https://travis-ci.org/pierre-l/blockchain_network_simulation.svg?branch=master)](https://travis-ci.org/pierre-l/blockchain_network_simulation)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+
 How it works
 ---
 Basic knowledge about proof-of-work blockchains and the Tokio library are recommended to deeply understand how this simulation works.
