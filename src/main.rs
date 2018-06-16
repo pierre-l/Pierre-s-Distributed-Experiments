@@ -64,7 +64,7 @@ impl PowNode{
                             peer.known_chain_height = chain_height;
                         }
                         Err(err) => {
-                            info!("Lost connection.");
+                            info!("Lost connection: {}", err);
                             peer.is_closed = true;
                         }
                     }
@@ -137,7 +137,7 @@ impl Node<Arc<Chain>> for PowNode{
                                 info!("[#{}] New peer. Total: {}", self.node_id, peers.len());
                             },
                             Err(err) => {
-                                info!("[#{}] Peer lost", self.node_id);
+                                info!("[#{}] Peer lost: {}", self.node_id, err);
                             }
                         }
                     },
