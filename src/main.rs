@@ -19,13 +19,23 @@ use network::Network;
 fn main() {
     env_logger::init();
 
-    pow_network_simulation()
+    pow_network_simulation(
+        8,
+        2,
+        7,
+        Duration::from_secs(15),
+    )
 }
 
-pub fn pow_network_simulation(){
+pub fn pow_network_simulation(
+    number_of_nodes: u8,
+    initiated_connections_per_node: usize,
+    difficulty_factor: usize,
+    duration: Duration,
+){
     // Set up a chain.
     let mut difficulty = Difficulty::min_difficulty();
-    for _i in 0..7{
+    for _i in 0..difficulty_factor{
         difficulty.increase();
     }
 
@@ -33,9 +43,9 @@ pub fn pow_network_simulation(){
     let node_id = AtomicUsize::new(0);
 
     // Run the blockchain network.
-    let network = Network::new(8, 2);
+    let network = Network::new(number_of_nodes, initiated_connections_per_node);
     network.run(move ||{
         let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
         PowNode::new(node_id, chain.clone())
-    }, Duration::from_secs(15));
+    }, duration);
 }
