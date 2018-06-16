@@ -26,11 +26,11 @@ pub struct Peer{
     is_closed: bool,
 }
 
-/// Represents the kind of events that can happen in a Proof of Work
+/// Represents the events that can happen in a Proof of Work
 /// blockchain node.
 /// This enum helps us manipulate everything in the same stream, avoiding
 /// concurrency issues, locking and lifetime management.
-pub enum EitherPeerOrChain{
+pub enum NodeEvent {
     Peer(Peer),
     MinedChain(Arc<Chain>),
     ChainRemoteUpdate(Arc<Chain>),
@@ -100,14 +100,14 @@ impl Node<Arc<Chain>> for PowNode{
 
                 let reception = receiver
                     .map(|chain|{
-                        EitherPeerOrChain::ChainRemoteUpdate(chain)
+                        NodeEvent::ChainRemoteUpdate(chain)
                     })
                     .map_err(|_|{
                         panic!()
                     });
 
                 // Send a peer first, then every update received.
-                futures::stream::once(Ok(EitherPeerOrChain::Peer(Peer {
+                futures::stream::once(Ok(NodeEvent::Peer(Peer {
                     sender,
                     known_chain_height: 0,
                     is_closed: false,
@@ -125,12 +125,12 @@ impl Node<Arc<Chain>> for PowNode{
             .select( // This merges the events coming from peers with the events of new mined nodes.
                 mining_stream
                     .map(move |chain|{
-                        EitherPeerOrChain::MinedChain(chain)
+                        NodeEvent::MinedChain(chain)
                     })
             )
-            .for_each(move |either_peer_or_chain|{
-                match either_peer_or_chain{
-                    EitherPeerOrChain::Peer(peer) => {
+            .for_each(move |node_event|{
+                match node_event{
+                    NodeEvent::Peer(peer) => {
                         match &peer.sender.unbounded_send(self.chain.clone()) {
                             Ok(()) => {
                                 peers.push(peer);
@@ -141,11 +141,11 @@ impl Node<Arc<Chain>> for PowNode{
                             }
                         }
                     },
-                    EitherPeerOrChain::MinedChain(chain) => {
+                    NodeEvent::MinedChain(chain) => {
                         info!("[#{}] Mined new chain with height {}: {:?}", self.node_id, chain.height(), chain.head().hash().bytes());
                         self.propagate(chain, &mut peers, &updater);
                     },
-                    EitherPeerOrChain::ChainRemoteUpdate(chain) => {
+                    NodeEvent::ChainRemoteUpdate(chain) => {
                         if chain.validate().is_ok(){
                             self.propagate(chain, &mut peers, &updater);
                         } else {
