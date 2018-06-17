@@ -1,6 +1,9 @@
 use ring::digest::{self, Digest, SHA256, SHA256_OUTPUT_LEN};
 use std::cmp::Ordering;
 use std::u8::MAX as U8_MAX;
+use std::fmt::Debug;
+use std::fmt::Formatter;
+use std::fmt::Error;
 
 #[derive(Clone, Debug)]
 pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
@@ -31,7 +34,7 @@ impl Difficulty{
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Hash{
     digest: Digest,
 }
@@ -73,6 +76,15 @@ impl Hash{
 
     pub fn bytes(&self) -> &[u8]{
         self.digest.as_ref()
+    }
+}
+
+impl Debug for Hash{
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        for byte in self.bytes() {
+            write!(f, "{:x}", byte)?;
+        }
+        Ok(())
     }
 }
 
