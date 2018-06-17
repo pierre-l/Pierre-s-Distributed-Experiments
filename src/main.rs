@@ -48,6 +48,12 @@ fn main() {
             .value_name("DURATION_IN_SECONDS")
             .help("The duration of the simulation in seconds.")
             .takes_value(true))
+        .arg(Arg::with_name("hash_duration")
+            .short("H")
+            .long("hash_duration")
+            .value_name("HASH_DURATION_IN_MILLIS")
+            .help("The simulated duration in milliseconds of a hashing operation")
+            .takes_value(true))
         .get_matches();
 
     let number_of_nodes: u32 = matches
@@ -70,11 +76,17 @@ fn main() {
         .unwrap_or("30")
         .parse().expect("Invalid duration in seconds, expected [1-18,446,744,073,709,551,615]");
 
+    let hash_duration: u64 = matches
+        .value_of("hash_duration")
+        .unwrap_or("10")
+        .parse().expect("Invalid hash duration in milliseconds, expected [1-18,446,744,073,709,551,615]");
+
     pow_network_simulation(
         number_of_nodes,
         initiated_connections_per_node,
         difficulty_factor,
         Duration::from_secs(duration_in_seconds),
+        Duration::from_millis(hash_duration),
     )
 }
 
@@ -83,6 +95,7 @@ pub fn pow_network_simulation(
     initiated_connections_per_node: u8,
     difficulty_factor: u8,
     duration: Duration,
+    mining_attempt_delay: Duration,
 ){
     // Set up a chain.
     let mut difficulty = Difficulty::min_difficulty();
@@ -97,6 +110,6 @@ pub fn pow_network_simulation(
     let network = Network::new(number_of_nodes, initiated_connections_per_node);
     network.run(move ||{
         let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u32;
-        PowNode::new(node_id, chain.clone())
+        PowNode::new(node_id, chain.clone(), mining_attempt_delay)
     }, duration);
 }

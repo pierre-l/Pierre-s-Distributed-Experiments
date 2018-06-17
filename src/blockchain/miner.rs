@@ -41,7 +41,7 @@ impl MiningStateUpdater {
     }
 }
 
-pub fn mining_stream(node_id: u32, chain: Arc<Chain>)
+pub fn mining_stream(node_id: u32, chain: Arc<Chain>, attempt_delay: Duration)
     -> (impl Stream<Item=Arc<Chain>, Error=()>, MiningStateUpdater){
     let (updater_sender, updater_receiver) = mpsc::unbounded();
 
@@ -52,7 +52,7 @@ pub fn mining_stream(node_id: u32, chain: Arc<Chain>)
     let mining_stream = updater_receiver
         // Merging both streams avoids the need of locking on the state by doing everything sequentially.
         .map(|chain_update|{Some(chain_update)})
-        .select(interval_stream(10u64).map(|_instant|{None}))
+        .select(interval_stream(attempt_delay).map(|_instant|{None}))
         // Now we can mine or update the state.
         .map(move |chain_update_option|{
             if let Some(chain_update) = chain_update_option{
@@ -81,8 +81,12 @@ pub fn mining_stream(node_id: u32, chain: Arc<Chain>)
     (mining_stream, mining_state_updater)
 }
 
-fn interval_stream(millis: u64) -> impl Stream<Item=Instant, Error=()> {
-    let interval_duration = Duration::from_millis(millis);
+/// Returns a stream that yields an item every time the `interval_duration` passes.
+///
+/// # Arguments
+///
+/// `interval_duration`: the duration of the interval between two yielded items.
+fn interval_stream(interval_duration: Duration) -> impl Stream<Item=Instant, Error=()> {
     let start_instant = Instant::now().add(interval_duration);
     Interval::new(start_instant, interval_duration)
         .map_err(|timer_err|{

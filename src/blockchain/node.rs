@@ -3,6 +3,7 @@ use blockchain::{Chain, mining_stream, MiningStateUpdater};
 use futures::{self, future, Future, Stream};
 use network::{MPSCConnection, Node};
 use std::sync::Arc;
+use std::time::Duration;
 use flattenselect;
 
 /// Contains a sink to the peer and information about the peer state.
@@ -25,14 +26,20 @@ pub enum NodeEvent {
 
 pub struct PowNode{
     node_id: u32,
+    mining_attempt_delay: Duration,
     chain: Arc<Chain>,
 }
 
 impl PowNode{
-    pub fn new(node_id: u32, initial_chain: Arc<Chain>,) -> PowNode{
+    pub fn new(
+        node_id: u32,
+        initial_chain: Arc<Chain>,
+        mining_attempt_delay: Duration,
+    ) -> PowNode{
         PowNode{
             node_id,
             chain: initial_chain,
+            mining_attempt_delay,
         }
     }
 
@@ -78,7 +85,7 @@ impl Node<Arc<Chain>> for PowNode{
         let (
             mining_stream, // This stream will yield valid blocks.
             updater// This provides a way to warn the miner that it should mine a new chain
-        ) = mining_stream(self.node_id, self.chain.clone());
+        ) = mining_stream(self.node_id, self.chain.clone(), self.mining_attempt_delay);
 
         let peer_stream = connection_stream
             .map(move |connection|{
