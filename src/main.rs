@@ -13,13 +13,16 @@ use network::Network;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
+use log::LevelFilter;
 
 mod network;
 mod blockchain;
 mod flatten_select;
 
 fn main() {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+        .filter_level(LevelFilter::Info)
+        .init();
 
     let matches = App::new("The Blockchain Network Simulation")
         .version("0.1")
