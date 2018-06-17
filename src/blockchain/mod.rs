@@ -2,7 +2,7 @@ mod pow;
 mod miner;
 mod node;
 
-use std::u8::MAX as U8_MAX;
+use std::u32::MAX as U32_MAX;
 use std::sync::Arc;
 use blockchain::pow::{Hash, Nonce};
 use ring::digest::SHA256_OUTPUT_LEN;
@@ -11,14 +11,14 @@ pub use self::pow::Difficulty;
 pub use self::node::PowNode;
 
 pub struct Block{
-    node_id: u8,
+    node_id: u32,
     nonce: Nonce,
     hash: Hash,
     previous_block_hash: Hash,
 }
 
 impl Block{
-    pub fn new(node_id: u8, nonce: Nonce, previous_block_hash: Hash) -> Block {
+    pub fn new(node_id: u32, nonce: Nonce, previous_block_hash: Hash) -> Block {
         let hash = Hash::new(node_id, &nonce, previous_block_hash.bytes());
         Block{
             node_id,
@@ -31,7 +31,7 @@ impl Block{
     /// The genesis block is the first block of the chain. It is the same for all nodes.
     pub fn genesis_block() -> Block {
         let nonce = Nonce::new();
-        let genesis_node_id = U8_MAX;
+        let genesis_node_id = U32_MAX;
         let hash = Hash::new(genesis_node_id, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
         Block{
             node_id: genesis_node_id,

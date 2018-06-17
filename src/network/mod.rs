@@ -22,14 +22,14 @@ pub struct Network<M> where M: Clone + Send + 'static{
 }
 
 impl <M> Network<M> where M: Clone + Send + 'static{
-    pub fn new(size: u8, initiated_connections_per_node: u8)
+    pub fn new(size: u32, initiated_connections_per_node: u8)
         -> Network<M> where M: Clone + Send + 'static
     {
         let mut transports = vec![];
         let mut addresses = vec![];
         let mut defined_connections = BiSet::new();
 
-        for i in 0u8..size {
+        for i in 0..size {
             let node = MPSCTransport::new(i);
             addresses.push(node.address().clone());
             transports.push(node);
@@ -192,7 +192,7 @@ mod tests{
         new_network_test(8, 1);
     }
 
-    fn new_network_test(network_size: u8, initiated_connections: u8) {
+    fn new_network_test(network_size: u32, initiated_connections: u8) {
         let network = Network::new(network_size, initiated_connections);
 
         let global_number_of_received_messages = Arc::new(AtomicUsize::new(0));

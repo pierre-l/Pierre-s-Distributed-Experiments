@@ -24,12 +24,12 @@ pub enum NodeEvent {
 }
 
 pub struct PowNode{
-    node_id: u8,
+    node_id: u32,
     chain: Arc<Chain>,
 }
 
 impl PowNode{
-    pub fn new(node_id: u8, initial_chain: Arc<Chain>,) -> PowNode{
+    pub fn new(node_id: u32, initial_chain: Arc<Chain>,) -> PowNode{
         PowNode{
             node_id,
             chain: initial_chain,

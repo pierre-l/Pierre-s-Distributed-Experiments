@@ -37,14 +37,21 @@ pub struct Hash{
 }
 
 impl Hash{
-    pub fn new(node_id: u8, nonce: &Nonce, previous_hash: &[u8]) -> Hash{
-        let mut data_to_hash = [0u8; 9 + SHA256_OUTPUT_LEN];
+    pub fn new(node_id: u32, nonce: &Nonce, previous_hash: &[u8]) -> Hash{
+        let mut data_to_hash = [0u8;
+            8 // Length of the nonce field.
+                + 4 // Length of the node_id field.
+                + SHA256_OUTPUT_LEN // Length of the hash.
+        ];
 
         data_to_hash[..8].clone_from_slice(&nonce.0[..8]);
 
-        data_to_hash[8] = node_id;
+        data_to_hash[8] = ((node_id >> 24) & 0xff) as u8;
+        data_to_hash[9] = ((node_id >> 16) & 0xff) as u8;
+        data_to_hash[10] = ((node_id >> 8) & 0xff) as u8;
+        data_to_hash[11] = (node_id & 0xff) as u8;
 
-        data_to_hash[9..(SHA256_OUTPUT_LEN + 9)].clone_from_slice(&previous_hash[..SHA256_OUTPUT_LEN]);
+        data_to_hash[12..(SHA256_OUTPUT_LEN + 12)].clone_from_slice(&previous_hash[..SHA256_OUTPUT_LEN]);
 
         let digest = digest::digest(&SHA256, &data_to_hash);
 

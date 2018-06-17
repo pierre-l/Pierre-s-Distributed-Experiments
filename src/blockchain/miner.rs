@@ -9,11 +9,11 @@ use tokio_timer::Interval;
 pub struct MiningState {
     chain: Arc<Chain>,
     nonce: Nonce,
-    node_id: u8,
+    node_id: u32,
 }
 
 impl MiningState {
-    pub fn new(node_id: u8, chain: Arc<Chain>) -> MiningState {
+    pub fn new(node_id: u32, chain: Arc<Chain>) -> MiningState {
         MiningState {
             chain,
             nonce: Nonce::new(),
@@ -41,7 +41,7 @@ impl MiningStateUpdater {
     }
 }
 
-pub fn mining_stream(node_id: u8, chain: Arc<Chain>)
+pub fn mining_stream(node_id: u32, chain: Arc<Chain>)
     -> (impl Stream<Item=Arc<Chain>, Error=()>, MiningStateUpdater){
     let (updater_sender, updater_receiver) = mpsc::unbounded();
 

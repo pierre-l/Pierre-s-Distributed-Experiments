@@ -50,10 +50,10 @@ fn main() {
             .takes_value(true))
         .get_matches();
 
-    let number_of_nodes: u8 = matches
+    let number_of_nodes: u32 = matches
         .value_of("number_of_nodes")
         .unwrap_or("8")
-        .parse().expect("Invalid number of nodes, expected [1-255]");
+        .parse().expect("Invalid number of nodes, expected [1-4,294,967,295]");
 
     let initiated_connections_per_node: u8 = matches
         .value_of("initiated_connections_per_node")
@@ -68,7 +68,7 @@ fn main() {
     let duration_in_seconds: u64 = matches
         .value_of("duration_in_seconds")
         .unwrap_or("30")
-        .parse().expect("Invalid duration in seconds, expected [1-9,223,372,036,854,775,807]");
+        .parse().expect("Invalid duration in seconds, expected [1-18,446,744,073,709,551,615]");
 
     pow_network_simulation(
         number_of_nodes,
@@ -79,7 +79,7 @@ fn main() {
 }
 
 pub fn pow_network_simulation(
-    number_of_nodes: u8,
+    number_of_nodes: u32,
     initiated_connections_per_node: u8,
     difficulty_factor: u8,
     duration: Duration,
@@ -96,7 +96,7 @@ pub fn pow_network_simulation(
     // Run the blockchain network.
     let network = Network::new(number_of_nodes, initiated_connections_per_node);
     network.run(move ||{
-        let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u8;
+        let node_id = node_id.fetch_add(1, Ordering::Relaxed) as u32;
         PowNode::new(node_id, chain.clone())
     }, duration);
 }
