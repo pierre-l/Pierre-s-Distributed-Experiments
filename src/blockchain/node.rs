@@ -136,7 +136,7 @@ impl Node<Arc<Chain>> for PowNode{
                         }
                     },
                     NodeEvent::MinedChain(chain) => {
-                        info!("[#{}] Mined new chain with height {}: {:?}", self.node_id, chain.height(), chain.head().hash().bytes());
+                        info!("[#{}] Mined new chain with height {}: {:?}", self.node_id, chain.height(), chain.head().hash());
                         self.propagate(chain, &mut peers, &updater);
                     },
                     NodeEvent::ChainRemoteUpdate(chain) => {
