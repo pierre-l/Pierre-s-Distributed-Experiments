@@ -8,7 +8,7 @@ extern crate tokio;
 extern crate tokio_timer;
 
 use blockchain::{Chain, Difficulty, PowNode};
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg};
 use network::Network;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
