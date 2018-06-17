@@ -1,15 +1,15 @@
 The Blockchain Network Simulation
 =================================
 
+[![Build Status](https://travis-ci.org/pierre-l/blockchain_network_simulation.svg?branch=master)](https://travis-ci.org/pierre-l/blockchain_network_simulation)
+[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
+
 BNS is a simulation of a Proof-of-Work blockchain network built on top of a rudimental peer-to-peer network simulator. It is written in [Rust](https://www.rust-lang.org/en-US/) and relies on the [Tokio and futures libraries](https://tokio.rs/).
 
 Status
 ------
 
 This is an experimental project. Everything written here was not written for a production environment. Significant API changes are to be expected in the near future.
-
-[![Build Status](https://travis-ci.org/pierre-l/blockchain_network_simulation.svg?branch=master)](https://travis-ci.org/pierre-l/blockchain_network_simulation)
-[![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
 How it works
 ---
