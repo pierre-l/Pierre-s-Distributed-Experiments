@@ -22,7 +22,7 @@ pub struct Network<M> where M: Clone + Send + 'static{
 }
 
 impl <M> Network<M> where M: Clone + Send + 'static{
-    pub fn new(size: u8, initiated_connections_per_node: usize)
+    pub fn new(size: u8, initiated_connections_per_node: u8)
         -> Network<M> where M: Clone + Send + 'static
     {
         let mut transports = vec![];
@@ -48,7 +48,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
                 }
             }
 
-            for _i in 0..initiated_connections_per_node {
+            for _i in 0u8..initiated_connections_per_node {
                 let pool_not_empty = !candidate_addresses.is_empty();
                 if pool_not_empty {
                     let seed_index = transports.random_different_address(&candidate_addresses);
@@ -192,7 +192,7 @@ mod tests{
         new_network_test(8, 1);
     }
 
-    fn new_network_test(network_size: u8, initiated_connections: usize) {
+    fn new_network_test(network_size: u8, initiated_connections: u8) {
         let network = Network::new(network_size, initiated_connections);
 
         let global_number_of_received_messages = Arc::new(AtomicUsize::new(0));
@@ -211,8 +211,8 @@ mod tests{
             }
         }, Duration::from_secs(5));
 
-        assert_eq!(network_size as usize * 2 * initiated_connections, connections_established.load(Ordering::Relaxed));
-        assert_eq!(network_size as usize * 2 * initiated_connections, global_number_of_received_messages.load(Ordering::Relaxed));
+        assert_eq!(network_size as usize * 2 * initiated_connections as usize , connections_established.load(Ordering::Relaxed));
+        assert_eq!(network_size as usize * 2 * initiated_connections as usize , global_number_of_received_messages.load(Ordering::Relaxed));
         assert!(notified_of_start.load(Ordering::Relaxed));
     }
 }

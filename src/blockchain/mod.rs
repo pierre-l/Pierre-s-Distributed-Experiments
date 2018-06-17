@@ -1,12 +1,14 @@
 mod pow;
 mod miner;
+mod node;
 
 use std::u8::MAX as U8_MAX;
 use std::sync::Arc;
 use blockchain::pow::{Hash, Nonce};
 use ring::digest::SHA256_OUTPUT_LEN;
-pub use blockchain::miner::{mining_stream, MiningStateUpdater};
-pub use blockchain::pow::Difficulty;
+pub use self::miner::{mining_stream, MiningStateUpdater};
+pub use self::pow::Difficulty;
+pub use self::node::PowNode;
 
 pub struct Block{
     node_id: u8,
