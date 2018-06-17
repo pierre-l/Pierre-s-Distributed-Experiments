@@ -4,7 +4,7 @@ use futures::{self, future, Future, Stream};
 use network::{MPSCConnection, Node};
 use std::sync::Arc;
 use std::time::Duration;
-use flattenselect;
+use flatten_select;
 
 /// Contains a sink to the peer and information about the peer state.
 #[derive(Clone)]
@@ -110,7 +110,7 @@ impl Node<Arc<Chain>> for PowNode{
             })
         ;
         // Flatten this stream so all incoming traffic is considered a single stream.
-        let peer_stream = flattenselect::new(peer_stream);
+        let peer_stream = flatten_select::new(peer_stream);
 
         // Joining all these streams helps us avoid concurrency issues, the use of locking and
         // complicated lifetime management.

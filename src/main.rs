@@ -16,7 +16,7 @@ use std::time::Duration;
 
 mod network;
 mod blockchain;
-mod flattenselect;
+mod flatten_select;
 
 fn main() {
     env_logger::init();
