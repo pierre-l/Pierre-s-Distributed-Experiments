@@ -21,6 +21,7 @@ mod flatten_select;
 
 fn main() {
     env_logger::Builder::from_default_env()
+        .default_format_module_path(false)
         .filter_level(LevelFilter::Info)
         .init();
 
