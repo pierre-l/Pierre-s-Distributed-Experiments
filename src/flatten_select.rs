@@ -35,6 +35,8 @@ pub fn new<S>(s: S) -> FlattenSelect<S>
 }
 
 // Directly copied from tokio's flatten implementation.
+// Required in cases like chaining stream operators
+#[allow(dead_code)]
 impl<S: Stream> FlattenSelect<S> {
     /// Acquires a reference to the underlying stream that this combinator is
     /// pulling from.
