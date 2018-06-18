@@ -106,6 +106,8 @@ pub fn pow_network_simulation(
         difficulty.increase();
     }
 
+    info!("Chain difficulty: {:?}", difficulty);
+
     let chain = Arc::new(Chain::init_new(difficulty));
     let node_id = AtomicUsize::new(0);
 

@@ -5,7 +5,7 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Error;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
 impl Difficulty{
@@ -31,6 +31,12 @@ impl Difficulty{
 
             self.0[next_index] = U8_MAX/2;
         }
+    }
+}
+
+impl Debug for Difficulty{
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        print_u8_as_hexa(&self.0, f)
     }
 }
 
@@ -81,20 +87,7 @@ impl Hash{
 
 impl Debug for Hash{
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        let bytes = self.bytes();
-
-        let mut concatenated = String::new();
-        for byte in bytes {
-            let hex_byte = format!("{:x}", byte);
-
-            if hex_byte.len() == 1 {
-                concatenated += "0";
-            }
-
-            concatenated += &hex_byte;
-        }
-        write!(f, "{}", &concatenated)?;
-        Ok(())
+        print_u8_as_hexa(&self.bytes(), f)
     }
 }
 
@@ -135,6 +128,21 @@ impl Nonce{
         }
         self.0[index_to_increment] += 1;
     }
+}
+
+fn print_u8_as_hexa(bytes: &[u8], f: &mut Formatter) -> Result<(), Error> {
+    let mut concatenated = String::new();
+    for byte in bytes {
+        let hex_byte = format!("{:x}", byte);
+
+        if hex_byte.len() == 1 {
+            concatenated += "0";
+        }
+
+        concatenated += &hex_byte;
+    }
+    write!(f, "{}", &concatenated)?;
+    Ok(())
 }
 
 
