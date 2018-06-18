@@ -81,9 +81,19 @@ impl Hash{
 
 impl Debug for Hash{
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        for byte in self.bytes() {
-            write!(f, "{:x}", byte)?;
+        let bytes = self.bytes();
+
+        let mut concatenated = String::new();
+        for byte in bytes {
+            let hex_byte = format!("{:x}", byte);
+
+            if hex_byte.len() == 1 {
+                concatenated += "0";
+            }
+
+            concatenated += &hex_byte;
         }
+        write!(f, "{}", &concatenated)?;
         Ok(())
     }
 }
