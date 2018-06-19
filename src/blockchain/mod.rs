@@ -10,6 +10,7 @@ pub use self::miner::{mining_stream, MiningStateUpdater};
 pub use self::pow::Difficulty;
 pub use self::node::PowNode;
 
+#[derive(Clone)]
 pub struct Block{
     node_id: u32,
     nonce: Nonce,
@@ -99,7 +100,7 @@ impl Chain{
             tail: Some(chain.clone()),
         };
 
-        new_chain.validate()?;
+        new_chain.validate_head()?;
         Ok(Arc::new(new_chain))
     }
 
@@ -166,20 +167,40 @@ mod tests {
 
     #[test]
     fn can_create_and_expand_a_chain() {
-        let mut difficulty = Difficulty::min_difficulty();
-        difficulty.increase();
+        let (mut chain, node_id, nonce) = init_chain();
 
-        let chain = Chain::init_new(difficulty);
-        let mut chain = Arc::new(chain);
+        chain = mine_5_blocks(chain, node_id, nonce);
 
-        let node_id = 1;
-        let mut nonce = Nonce::new();
+        assert!(chain.validate().is_ok());
+        assert_eq!(5, chain.height);
+    }
 
-        while {
+    #[test]
+    fn cannot_forge_difficulty() {
+        let (mut chain, node_id, mut nonce) = init_chain();
+
+        chain = mine_5_blocks(chain, node_id, nonce.clone());
+
+        nonce.increment();
+        let block = Block::new(node_id, nonce.clone(), &Arc::new(Difficulty::min_difficulty()), chain.head().hash().clone());
+
+        assert!(Chain::expand(&chain, block.clone()).is_err());
+
+        let invalid_forged_chain = Chain {
+            head: block,
+            height: chain.height + 1,
+            tail: Some(chain.clone()),
+        };
+
+        assert!(invalid_forged_chain.validate().is_err());
+    }
+
+    fn mine_5_blocks(mut chain: Arc<Chain>, node_id: u32, mut nonce: Nonce) -> Arc<Chain>{
+        loop {
             nonce.increment();
             let block = Block::new(node_id, nonce.clone(), &chain.head().difficulty, chain.head().hash().clone());
 
-            let new_chain = match Chain::expand(&chain, block){
+            let new_chain = match Chain::expand(&chain, block) {
                 Ok(chain) => {
                     Some(chain)
                 },
@@ -192,9 +213,19 @@ mod tests {
                 chain = new_chain;
             }
 
-            chain.height < 5
-        } {}
+            if chain.height == 5 {
+                return chain;
+            }
+        }
+    }
 
-        assert!(chain.validate().is_ok())
+    fn init_chain() -> (Arc<Chain>, u32, Nonce) {
+        let mut difficulty = Difficulty::min_difficulty();
+        difficulty.increase();
+        let chain = Chain::init_new(difficulty);
+        let chain = Arc::new(chain);
+        let node_id = 1;
+        let nonce = Nonce::new();
+        (chain, node_id, nonce)
     }
 }
