@@ -140,10 +140,13 @@ impl Node<Arc<Chain>> for PowNode{
                         self.propagate(chain, &mut peers, &updater);
                     },
                     NodeEvent::ChainRemoteUpdate(chain) => {
-                        if chain.validate().is_ok(){
-                            self.propagate(chain, &mut peers, &updater);
-                        } else {
-                            error!("Invalid chain.")
+                        match chain.validate(){
+                            Ok(()) => {
+                                self.propagate(chain, &mut peers, &updater);
+                            },
+                            Err(err) => {
+                                error!("Invalid chain: {}", err)
+                            },
                         }
                     }
                 }

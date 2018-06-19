@@ -111,8 +111,8 @@ fn mine(state: &mut MiningState) -> MiningResult{
             debug!("[N#{}] Mined new block with height: {}", state.node_id, mined_chain.height);
             MiningResult::Success(mined_chain)
         },
-        Err(()) => {
-            debug!("[N#{}] Failed to mine a new block for height {}", state.node_id, state.chain.height() + 1);
+        Err(err) => {
+            debug!("[N#{}] Failed to mine a new block for height {}. Cause: {}", state.node_id, state.chain.height() + 1, err);
             MiningResult::Failure
         }
     }

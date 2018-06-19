@@ -6,7 +6,7 @@ use std::fmt::Formatter;
 use std::fmt::Error;
 
 const DIFFICULTY_BYTES_LEN: usize = SHA256_OUTPUT_LEN;
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
 impl Difficulty{

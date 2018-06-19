@@ -18,6 +18,9 @@ pub struct Block{
     previous_block_hash: Hash,
 }
 
+const HEAD_ERROR_INVALID_HASH: &str = "Invalid hash";
+const HEAD_ERROR_HASH_HIGHER_THAN_DIFFICULTY: &str = "Hash higher than difficulty";
+
 impl Block{
     pub fn new(
         node_id: u32,
@@ -49,13 +52,17 @@ impl Block{
         }
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn validate(&self) -> Result<(), &'static str> {
         if self.hash.less_than(&self.difficulty) {
             let hash = Hash::new(self.node_id, &self.nonce, &self.difficulty, &self.previous_block_hash.bytes());
 
-            hash.eq(&self.hash)
+            if hash.eq(&self.hash) {
+                Ok(())
+            } else {
+                Err(HEAD_ERROR_INVALID_HASH)
+            }
         } else {
-            false
+            Err(HEAD_ERROR_HASH_HIGHER_THAN_DIFFICULTY)
         }
     }
 
@@ -72,7 +79,7 @@ pub struct Chain{
 
 const CHAIN_ERROR_HASH_MISMATCH: &str = "Hash mismatch";
 const CHAIN_ERROR_INVALID_GENESIS: &str = "Invalid genesis";
-const CHAIN_ERROR_INVALID_HEAD: &str = "Invalid head";
+const CHAIN_ERROR_INVALID_DIFFICULTY: &str = "Invalid difficulty";
 
 impl Chain{
     pub fn init_new(difficulty: Difficulty) -> Chain{
@@ -85,19 +92,15 @@ impl Chain{
 
     /// Creates a new chain by adding a block to an existing chain.
     /// Will fail if the block is invalid or the hashes do not match.
-    pub fn expand(chain: &Arc<Chain>, block: Block) -> Result<Arc<Chain>, ()> {
-        if Chain::hashes_match(&chain, &block)
-            && block.is_valid() {
-            let new_chain = Chain {
-                head: block,
-                height: chain.height + 1,
-                tail: Some(chain.clone()),
-            };
+    pub fn expand(chain: &Arc<Chain>, block: Block) -> Result<Arc<Chain>, &'static str> {
+        let new_chain = Chain {
+            head: block,
+            height: chain.height + 1,
+            tail: Some(chain.clone()),
+        };
 
-            Ok(Arc::new(new_chain))
-        } else {
-            Err(())
-        }
+        new_chain.validate()?;
+        Ok(Arc::new(new_chain))
     }
 
     /// The head of the chain is the block at the top of it.
@@ -134,14 +137,21 @@ impl Chain{
 
     fn validate_head(&self) -> Result<(), &'static str>{
         if let Some(ref tail) = self.tail{
-            if self.head.is_valid() {
-                if Chain::hashes_match(tail, &self.head){
-                    Ok(())
-                } else {
-                    Err(CHAIN_ERROR_HASH_MISMATCH)
+            match self.head.validate() {
+                Ok(()) => {
+                    if Chain::hashes_match(tail, &self.head){
+                        if tail.head.difficulty.eq(&self.head.difficulty){
+                            Ok(())
+                        } else {
+                            Err(CHAIN_ERROR_INVALID_DIFFICULTY)
+                        }
+                    } else {
+                        Err(CHAIN_ERROR_HASH_MISMATCH)
+                    }
+                },
+                Err(err) => {
+                    Err(err)
                 }
-            } else {
-                Err(CHAIN_ERROR_INVALID_HEAD)
             }
         } else {
             Ok(())
@@ -173,7 +183,7 @@ mod tests {
                 Ok(chain) => {
                     Some(chain)
                 },
-                Err(()) => {
+                Err(_err) => {
                     None
                 }
             };
