@@ -103,7 +103,8 @@ fn mine(state: &mut MiningState) -> MiningResult{
     state.nonce.increment();
 
     let head_hash = state.chain.head().hash().clone();
-    let block = Block::new(state.node_id, state.nonce.clone(), head_hash);
+    let difficulty = &state.chain.head().difficulty;
+    let block = Block::new(state.node_id, state.nonce.clone(), difficulty, head_hash);
 
     match Chain::expand(&state.chain, block){
         Ok(mined_chain) => {

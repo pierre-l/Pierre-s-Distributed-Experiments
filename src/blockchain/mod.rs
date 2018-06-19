@@ -14,36 +14,44 @@ pub struct Block{
     node_id: u32,
     nonce: Nonce,
     hash: Hash,
+    difficulty: Arc<Difficulty>,
     previous_block_hash: Hash,
 }
 
 impl Block{
-    pub fn new(node_id: u32, nonce: Nonce, previous_block_hash: Hash) -> Block {
-        let hash = Hash::new(node_id, &nonce, previous_block_hash.bytes());
+    pub fn new(
+        node_id: u32,
+        nonce: Nonce,
+        difficulty: &Arc<Difficulty>,
+        previous_block_hash: Hash
+    ) -> Block {
+        let hash = Hash::new(node_id, &nonce, difficulty, previous_block_hash.bytes());
         Block{
             node_id,
             nonce,
             hash,
+            difficulty: difficulty.clone(),
             previous_block_hash,
         }
     }
 
     /// The genesis block is the first block of the chain. It is the same for all nodes.
-    pub fn genesis_block() -> Block {
+    pub fn genesis_block(difficulty: Arc<Difficulty>) -> Block {
         let nonce = Nonce::new();
         let genesis_node_id = U32_MAX;
-        let hash = Hash::new(genesis_node_id, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
+        let hash = Hash::new(genesis_node_id, &nonce, &difficulty, &[0u8; SHA256_OUTPUT_LEN]);
         Block{
             node_id: genesis_node_id,
             nonce,
+            difficulty,
             previous_block_hash: hash.clone(),
             hash,
         }
     }
 
-    pub fn is_valid(&self, difficulty: &Arc<Difficulty>) -> bool {
-        if self.hash.less_than(difficulty) {
-            let hash = Hash::new(self.node_id, &self.nonce, &self.previous_block_hash.bytes());
+    pub fn is_valid(&self) -> bool {
+        if self.hash.less_than(&self.difficulty) {
+            let hash = Hash::new(self.node_id, &self.nonce, &self.difficulty, &self.previous_block_hash.bytes());
 
             hash.eq(&self.hash)
         } else {
@@ -59,7 +67,6 @@ impl Block{
 pub struct Chain{
     head: Block,
     tail: Option<Arc<Chain>>,
-    difficulty: Arc<Difficulty>,
     height: usize,
 }
 
@@ -70,9 +77,8 @@ const CHAIN_ERROR_INVALID_HEAD: &str = "Invalid head";
 impl Chain{
     pub fn init_new(difficulty: Difficulty) -> Chain{
         Chain{
-            head: Block::genesis_block(),
+            head: Block::genesis_block(Arc::new(difficulty)),
             tail: None,
-            difficulty: Arc::new(difficulty),
             height: 0,
         }
     }
@@ -81,10 +87,9 @@ impl Chain{
     /// Will fail if the block is invalid or the hashes do not match.
     pub fn expand(chain: &Arc<Chain>, block: Block) -> Result<Arc<Chain>, ()> {
         if Chain::hashes_match(&chain, &block)
-            && block.is_valid(&chain.difficulty) {
+            && block.is_valid() {
             let new_chain = Chain {
                 head: block,
-                difficulty: chain.difficulty.clone(),
                 height: chain.height + 1,
                 tail: Some(chain.clone()),
             };
@@ -120,7 +125,7 @@ impl Chain{
 
         if let Some(ref tail) = self.tail{
             Chain::validate(tail)
-        } else if self.head.hash().eq(Block::genesis_block().hash()) {
+        } else if self.head.hash().eq(Block::genesis_block(self.head.difficulty.clone()).hash()) {
                 Ok(())
         } else {
             Err(CHAIN_ERROR_INVALID_GENESIS)
@@ -129,7 +134,7 @@ impl Chain{
 
     fn validate_head(&self) -> Result<(), &'static str>{
         if let Some(ref tail) = self.tail{
-            if self.head.is_valid(&self.difficulty) {
+            if self.head.is_valid() {
                 if Chain::hashes_match(tail, &self.head){
                     Ok(())
                 } else {
@@ -162,7 +167,7 @@ mod tests {
 
         while {
             nonce.increment();
-            let block = Block::new(node_id, nonce.clone(), chain.head().hash().clone());
+            let block = Block::new(node_id, nonce.clone(), &chain.head().difficulty, chain.head().hash().clone());
 
             let new_chain = match Chain::expand(&chain, block){
                 Ok(chain) => {

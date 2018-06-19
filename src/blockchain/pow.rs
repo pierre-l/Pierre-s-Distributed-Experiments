@@ -5,6 +5,7 @@ use std::fmt::Debug;
 use std::fmt::Formatter;
 use std::fmt::Error;
 
+const DIFFICULTY_BYTES_LEN: usize = SHA256_OUTPUT_LEN;
 #[derive(Clone)]
 pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
 
@@ -46,11 +47,18 @@ pub struct Hash{
 }
 
 impl Hash{
-    pub fn new(node_id: u32, nonce: &Nonce, previous_hash: &[u8]) -> Hash{
+    pub fn new(
+        node_id: u32,
+        nonce: &Nonce,
+        difficulty: &Difficulty,
+        previous_hash: &[u8],
+    ) -> Hash{
+        let difficulty_bytes = difficulty.0.as_ref();
         let mut data_to_hash = [0u8;
             8 // Length of the nonce field.
                 + 4 // Length of the node_id field.
                 + SHA256_OUTPUT_LEN // Length of the hash.
+                + DIFFICULTY_BYTES_LEN
         ];
 
         data_to_hash[..8].clone_from_slice(&nonce.0[..8]);
@@ -60,7 +68,11 @@ impl Hash{
         data_to_hash[10] = ((node_id >> 8) & 0xff) as u8;
         data_to_hash[11] = (node_id & 0xff) as u8;
 
-        data_to_hash[12..(SHA256_OUTPUT_LEN + 12)].clone_from_slice(&previous_hash[..SHA256_OUTPUT_LEN]);
+        let index = 12;
+        data_to_hash[index..(SHA256_OUTPUT_LEN + index)].clone_from_slice(&previous_hash[..SHA256_OUTPUT_LEN]);
+
+        let index = index + SHA256_OUTPUT_LEN;
+        data_to_hash[index..(DIFFICULTY_BYTES_LEN + index)].clone_from_slice(&difficulty_bytes[..DIFFICULTY_BYTES_LEN]);
 
         let digest = digest::digest(&SHA256, &data_to_hash);
 
@@ -157,7 +169,7 @@ mod tests {
         let mut nonce = Nonce::new();
         for _i in 0..100 {
             nonce.increment();
-            let hash = Hash::new(1, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
+            let hash = Hash::new(1, &nonce, &difficulty, &[0u8; SHA256_OUTPUT_LEN]);
             assert_eq!(true, hash.less_than(&difficulty));
         }
     }
@@ -174,7 +186,7 @@ mod tests {
         let mut nonce = Nonce::new();
         for _i in 0..number_of_tries {
             nonce.increment();
-            let hash = Hash::new(1, &nonce, &[0u8; SHA256_OUTPUT_LEN]);
+            let hash = Hash::new(1, &nonce, &difficulty, &[0u8; SHA256_OUTPUT_LEN]);
 
             if hash.less_than(&difficulty) {
                 number_of_valid_hashes += 1;
