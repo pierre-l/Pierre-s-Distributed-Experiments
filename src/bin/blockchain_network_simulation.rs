@@ -60,17 +60,17 @@ fn main() {
 
     let number_of_nodes: u32 = matches
         .value_of("number_of_nodes")
-        .unwrap_or("8")
-        .parse().expect("Invalid number of nodes, expected [1-4,294,967,295]");
+        .unwrap_or("2048")
+        .parse().expect("Invalid number of nodes, expected [1-10000]");
 
     let initiated_connections_per_node: u8 = matches
         .value_of("initiated_connections_per_node")
-        .unwrap_or("2")
+        .unwrap_or("3")
         .parse().expect("Invalid number of initiated connections per node, expected [1-255]");
 
     let difficulty_factor: u8 = matches
         .value_of("difficulty_factor")
-        .unwrap_or("7")
+        .unwrap_or("15")
         .parse().expect("Invalid difficulty factor, expected [1-255]");
 
     let duration_in_seconds: u64 = matches
