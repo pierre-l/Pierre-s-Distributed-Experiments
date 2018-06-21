@@ -94,14 +94,18 @@ impl Chain{
     /// Creates a new chain by adding a block to an existing chain.
     /// Will fail if the block is invalid or the hashes do not match.
     pub fn expand(chain: &Arc<Chain>, block: Block) -> Result<Arc<Chain>, &'static str> {
-        let new_chain = Chain {
-            head: block,
-            height: chain.height + 1,
-            tail: Some(chain.clone()),
-        };
+        let new_chain = Chain::unvalidated_expand(chain, block);
 
         new_chain.validate_head()?;
         Ok(Arc::new(new_chain))
+    }
+
+    fn unvalidated_expand(chain: &Arc<Chain>, block: Block) -> Chain{
+        Chain {
+            head: block,
+            height: chain.height + 1,
+            tail: Some(chain.clone()),
+        }
     }
 
     /// The head of the chain is the block at the top of it.
@@ -165,11 +169,22 @@ impl Chain{
 mod tests {
     use super::*;
 
+    fn decapitate(chain: Arc<Chain>) -> (Option<Arc<Chain>>, Block){
+        match Arc::try_unwrap(chain){
+            Ok(chain) => {
+                (chain.tail, chain.head)
+            },
+            Err(_err) => {
+                panic!()
+            }
+        }
+    }
+
     #[test]
     fn can_create_and_expand_a_chain() {
-        let (mut chain, node_id, nonce) = init_chain();
+        let (mut chain, node_id, mut nonce) = init_chain();
 
-        chain = mine_5_blocks(chain, node_id, nonce);
+        chain = mine_5_blocks(chain, node_id, &mut nonce);
 
         assert!(chain.validate().is_ok());
         assert_eq!(5, chain.height);
@@ -177,41 +192,50 @@ mod tests {
 
     #[test]
     fn cannot_forge_difficulty() {
-        let (mut chain, node_id, mut nonce) = init_chain();
+        let (_nonce, mut block, chain) = init_decapitated_chain();
 
-        chain = mine_5_blocks(chain, node_id, nonce.clone());
-
-        nonce.increment();
-        let block = Block::new(node_id, nonce.clone(), &Arc::new(Difficulty::min_difficulty()), chain.head().hash().clone());
+        block.difficulty = Arc::new(Difficulty::min_difficulty());
 
         assert!(Chain::expand(&chain, block.clone()).is_err());
-
-        let invalid_forged_chain = Chain {
-            head: block,
-            height: chain.height + 1,
-            tail: Some(chain.clone()),
-        };
-
-        assert!(invalid_forged_chain.validate().is_err());
+        assert!(Chain::unvalidated_expand(&chain, block).validate().is_err());
     }
 
-    fn mine_5_blocks(mut chain: Arc<Chain>, node_id: u32, mut nonce: Nonce) -> Arc<Chain>{
-        loop {
-            nonce.increment();
-            let block = Block::new(node_id, nonce.clone(), &chain.head().difficulty, chain.head().hash().clone());
+    #[test]
+    fn cannot_forge_nonce() {
+        let (mut nonce, mut block, chain) = init_decapitated_chain();
 
-            let new_chain = match Chain::expand(&chain, block) {
-                Ok(chain) => {
-                    Some(chain)
-                },
-                Err(_err) => {
-                    None
-                }
-            };
+        nonce.increment();
+        block.nonce = nonce;
 
-            if let Some(new_chain) = new_chain {
-                chain = new_chain;
+        assert!(Chain::expand(&chain, block.clone()).is_err());
+        assert!(Chain::unvalidated_expand(&chain, block).validate().is_err());
+    }
+
+    fn init_decapitated_chain() -> (Nonce, Block, Arc<Chain>) {
+        let (mut chain, node_id, mut nonce) = init_chain();
+        chain = mine_5_blocks(chain, node_id, &mut nonce);
+        let (tail, block) = decapitate(chain);
+        let chain = tail.unwrap();
+        (nonce, block, chain)
+    }
+
+    fn try_to_mine_next_block(chain: Arc<Chain>, node_id: u32, nonce: &mut Nonce) -> Arc<Chain>{
+        nonce.increment();
+        let block = Block::new(node_id, nonce.clone(), &chain.head().difficulty, chain.head().hash().clone());
+
+        match Chain::expand(&chain, block) {
+            Ok(chain) => {
+                chain
+            },
+            Err(_err) => {
+                chain
             }
+        }
+    }
+
+    fn mine_5_blocks(mut chain: Arc<Chain>, node_id: u32, nonce: &mut Nonce) -> Arc<Chain>{
+        loop {
+            chain = try_to_mine_next_block(chain, node_id, nonce);
 
             if chain.height == 5 {
                 return chain;
