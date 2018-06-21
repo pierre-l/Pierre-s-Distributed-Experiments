@@ -73,13 +73,13 @@ impl PowNode{
         if &chain_height > self.chain.height() {
             mining_state_updater.mine_new_chain(chain.clone());
             self.chain = chain;
-            debug!("[#{}] New chain with height: {}", self.node_id, chain_height);
+            debug!("[#{:05}]  New chain with height: {}", self.node_id, chain_height);
         } else if &chain_height == self.chain.height() {
             let new_hash = chain.head.hash();
             let current_hash = self.chain.head.hash();
 
             if new_hash != current_hash {
-                info!("[#{}] Natural fork detected: {:?} <> {:?}", self.node_id, new_hash, current_hash);
+                info!("[#{:05}] Natural fork detected: {:?} <> {:?}", self.node_id, new_hash, current_hash);
             }
         }
     }
@@ -97,7 +97,7 @@ impl Node<Arc<Chain>> for PowNode{
         let node_id = self.node_id;
         let peer_stream = connection_stream
             .map(move |connection|{
-                debug!("[#{}] Connection received.", node_id);
+                debug!("[#{:05}] Connection received.", node_id);
                 let (sender, receiver) = connection.split();
 
                 let reception = receiver
@@ -136,15 +136,15 @@ impl Node<Arc<Chain>> for PowNode{
                         match &peer.sender.unbounded_send(self.chain.clone()) {
                             Ok(()) => {
                                 peers.push(peer);
-                                debug!("[#{}] New peer. Total: {}", self.node_id, peers.len());
+                                debug!("[#{:05}] New peer. Total: {}", self.node_id, peers.len());
                             },
                             Err(err) => {
-                                debug!("[#{}] Peer lost: {}", self.node_id, err);
+                                debug!("[#{:05}] Peer lost: {}", self.node_id, err);
                             }
                         }
                     },
                     NodeEvent::MinedChain(chain) => {
-                        info!("[#{}] Mined new chain {:?}, height {}", self.node_id, chain.head().hash(), chain.height());
+                        info!("[#{:05}] Mined new block {:?}, height {}", self.node_id, chain.head().hash(), chain.height());
                         self.propagate(chain, &mut peers, &updater);
                     },
                     NodeEvent::ChainRemoteUpdate(chain) => {
