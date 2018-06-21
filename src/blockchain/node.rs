@@ -74,6 +74,13 @@ impl PowNode{
             mining_state_updater.mine_new_chain(chain.clone());
             self.chain = chain;
             debug!("[#{}] New chain with height: {}", self.node_id, chain_height);
+        } else if &chain_height == self.chain.height() {
+            let new_hash = chain.head.hash();
+            let current_hash = self.chain.head.hash();
+
+            if new_hash != current_hash {
+                info!("[#{}] Natural fork detected: {:?} <> {:?}", self.node_id, new_hash, current_hash);
+            }
         }
     }
 }
