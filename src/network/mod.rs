@@ -75,7 +75,7 @@ impl <M> Network<M> where M: Clone + Send + 'static{
         let nodes = self.transports;
         let nodes_future = stream::iter_ok(nodes)
             .for_each(move |transport|{
-                info!("Starting a new node.");
+                debug!("Starting a new node.");
 
                 let node_future = node_factory().run(transport.run());
                 tokio::spawn(with_timeout(node_future, for_duration))

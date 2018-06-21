@@ -70,7 +70,7 @@ impl PowNode{
                 !peer.is_closed
         });
 
-        if chain_height > *self.chain.height() {
+        if &chain_height > self.chain.height() {
             mining_state_updater.mine_new_chain(chain.clone());
             self.chain = chain;
             debug!("[#{}] New chain with height: {}", self.node_id, chain_height);
@@ -87,9 +87,10 @@ impl Node<Arc<Chain>> for PowNode{
             updater// This provides a way to warn the miner that it should mine a new chain
         ) = mining_stream(self.node_id, self.chain.clone(), self.mining_attempt_delay);
 
+        let node_id = self.node_id;
         let peer_stream = connection_stream
             .map(move |connection|{
-                info!("Connection received.");
+                debug!("[#{}] Connection received.", node_id);
                 let (sender, receiver) = connection.split();
 
                 let reception = receiver
@@ -128,10 +129,10 @@ impl Node<Arc<Chain>> for PowNode{
                         match &peer.sender.unbounded_send(self.chain.clone()) {
                             Ok(()) => {
                                 peers.push(peer);
-                                info!("[#{}] New peer. Total: {}", self.node_id, peers.len());
+                                debug!("[#{}] New peer. Total: {}", self.node_id, peers.len());
                             },
                             Err(err) => {
-                                info!("[#{}] Peer lost: {}", self.node_id, err);
+                                debug!("[#{}] Peer lost: {}", self.node_id, err);
                             }
                         }
                     },
