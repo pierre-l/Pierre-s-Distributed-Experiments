@@ -50,11 +50,11 @@ fn main() {
             .value_name("DURATION_IN_SECONDS")
             .help("The duration of the simulation in seconds.")
             .takes_value(true))
-        .arg(Arg::with_name("hash_duration")
-            .short("H")
-            .long("hash_duration")
-            .value_name("HASH_DURATION_IN_MILLIS")
-            .help("The simulated duration in milliseconds of a hashing operation")
+        .arg(Arg::with_name("mining_delay")
+            .short("m")
+            .long("mining_delay")
+            .value_name("MINING_DELAY_IN_MILLIS")
+            .help("The delay between every attempt of a node to mine a new block.")
             .takes_value(true))
         .get_matches();
 
@@ -78,8 +78,8 @@ fn main() {
         .unwrap_or("30")
         .parse().expect("Invalid duration in seconds, expected [1-18,446,744,073,709,551,615]");
 
-    let hash_duration: u64 = matches
-        .value_of("hash_duration")
+    let mining_delay: u64 = matches
+        .value_of("mining_delay")
         .unwrap_or("10")
         .parse().expect("Invalid hash duration in milliseconds, expected [1-18,446,744,073,709,551,615]");
 
@@ -88,7 +88,7 @@ fn main() {
         initiated_connections_per_node,
         difficulty_factor,
         Duration::from_secs(duration_in_seconds),
-        Duration::from_millis(hash_duration),
+        Duration::from_millis(mining_delay),
     )
 }
 
