@@ -1,5 +1,5 @@
-use futures::{self, Poll, Async};
-use futures::{Stream, Sink};
+use futures::{self, Async, Poll};
+use futures::{Sink, Stream};
 
 /// A combinator used to flatten a stream-of-streams into one long stream of
 /// elements.
@@ -13,7 +13,8 @@ use futures::{Stream, Sink};
 #[derive(Debug)]
 #[must_use = "streams do nothing unless polled"]
 pub struct FlattenSelect<S>
-    where S: Stream,
+where
+    S: Stream,
 {
     stream: S,
     still_has_children: bool,
@@ -22,9 +23,10 @@ pub struct FlattenSelect<S>
 }
 
 pub fn new<S>(s: S) -> FlattenSelect<S>
-    where S: Stream,
-          S::Item: Stream,
-          <S::Item as Stream>::Error: From<S::Error>,
+where
+    S: Stream,
+    S::Item: Stream,
+    <S::Item as Stream>::Error: From<S::Error>,
 {
     FlattenSelect {
         stream: s,
@@ -65,7 +67,8 @@ impl<S: Stream> FlattenSelect<S> {
 // Directly copied from tokio's flatten implementation.
 // Forwarding impl of Sink from the underlying stream
 impl<S> Sink for FlattenSelect<S>
-    where S: Sink + Stream
+where
+    S: Sink + Stream,
 {
     type SinkItem = S::SinkItem;
     type SinkError = S::SinkError;
@@ -84,26 +87,27 @@ impl<S> Sink for FlattenSelect<S>
 }
 
 impl<S> Stream for FlattenSelect<S>
-    where S: Stream,
-          S::Item: Stream,
-          <S::Item as Stream>::Error: From<S::Error>,
+where
+    S: Stream,
+    S::Item: Stream,
+    <S::Item as Stream>::Error: From<S::Error>,
 {
     type Item = <S::Item as Stream>::Item;
     type Error = <S::Item as Stream>::Error;
 
     fn poll(&mut self) -> Poll<Option<Self::Item>, Self::Error> {
-        if self.still_has_children{
+        if self.still_has_children {
             match self.stream.poll() {
                 Ok(Async::Ready(Some(e))) => {
                     self.children.push(e);
-                },
+                }
                 Ok(Async::Ready(None)) => {
                     self.still_has_children = false;
-                },
+                }
                 Err(err) => {
                     return Err(From::from(err));
                 }
-                _other => {},
+                _other => {}
             }
         }
 
@@ -112,11 +116,11 @@ impl<S> Stream for FlattenSelect<S>
         if !self.still_has_children && children_len == 0 {
             return Ok(Async::Ready(None));
         } else if children_len > 0 {
-            let range_start = self.last_polled_index +1;
-            let range_end = range_start + children_len -1;
+            let range_start = self.last_polled_index + 1;
+            let range_end = range_start + children_len - 1;
 
             let mut to_remove = vec![];
-            for index in range_start..range_end{
+            for index in range_start..range_end {
                 let index = index % children_len;
                 self.last_polled_index = index;
 
@@ -125,7 +129,7 @@ impl<S> Stream for FlattenSelect<S>
                 match child.poll() {
                     Ok(Async::Ready(None)) => {
                         to_remove.push(index);
-                    },
+                    }
                     Ok(Async::Ready(Some(item))) => {
                         self.last_polled_index = index;
                         return Ok(Async::Ready(Some(item)));
@@ -133,7 +137,7 @@ impl<S> Stream for FlattenSelect<S>
                     Err(err) => {
                         return Err(err);
                     }
-                    _other => {},
+                    _other => {}
                 }
             }
 
@@ -141,16 +145,17 @@ impl<S> Stream for FlattenSelect<S>
             // indexes of the item to remove at every iteration. Leads to O(n*log n) in the worst case
             // instead of O(n^2)
             to_remove.sort();
-            let _: () = to_remove.iter().rev()
-                .map(|index_to_remove|{
+            let _: () = to_remove
+                .iter()
+                .rev()
+                .map(|index_to_remove| {
                     if self.last_polled_index > *index_to_remove {
                         self.last_polled_index -= 1;
                     }
 
                     self.children.remove(*index_to_remove);
                 })
-                .collect()
-            ;
+                .collect();
         }
 
         Ok(Async::NotReady) // No child was ready, consider this stream "not ready".
