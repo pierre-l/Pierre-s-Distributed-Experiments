@@ -1,0 +1,13 @@
+[package]
+name = "network_simulator"
+version = "0.1.0"
+authors = ["pierre-l <pierre.larger@gmail.com>"]
+repository = "https://github.com/pierre-l/blockchain_network_simulation"
+
+[dependencies]
+log = "0.4.1"
+futures = "0.1.19"
+tokio = "0.1.6"
+rand = "0.3"
+ring = "0.12.1"
+tokio-timer = "0.2.3"

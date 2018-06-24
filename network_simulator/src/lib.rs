@@ -1,5 +1,3 @@
-extern crate clap;
-extern crate env_logger;
 extern crate futures;
 #[macro_use]
 extern crate log;

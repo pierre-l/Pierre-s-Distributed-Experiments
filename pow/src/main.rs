@@ -1,17 +1,11 @@
 extern crate clap;
-extern crate env_logger;
-extern crate futures;
 #[macro_use]
 extern crate log;
-extern crate rand;
-extern crate ring;
-extern crate tokio;
-extern crate tokio_timer;
+extern crate env_logger;
+extern crate network_simulator as netsim;
 
-extern crate blockchain_network_simulation;
-
-use blockchain_network_simulation::blockchain::{Chain, Difficulty, PowNode};
-use blockchain_network_simulation::network::Network;
+use netsim::blockchain::{Chain, Difficulty, PowNode};
+use netsim::network::Network;
 use clap::{App, Arg};
 use log::LevelFilter;
 use std::sync::atomic::{AtomicUsize, Ordering};
