@@ -10,7 +10,6 @@ use ring::digest::SHA256_OUTPUT_LEN;
 use std::sync::Arc;
 use std::u32::MAX as U32_MAX;
 
-#[derive(Clone)]
 pub struct Block {
     node_id: u32,
     nonce: Nonce,
