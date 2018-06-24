@@ -197,22 +197,27 @@ mod tests {
 
     #[test]
     fn cannot_forge_difficulty() {
+        let min_difficulty = Difficulty::min_difficulty();
+
         let (_nonce, mut block, chain) = init_decapitated_chain();
+        block.difficulty = Arc::new(min_difficulty.clone());
+        assert!(Chain::expand(&chain, block).is_err());
 
-        block.difficulty = Arc::new(Difficulty::min_difficulty());
-
-        assert!(Chain::expand(&chain, block.clone()).is_err());
+        let (_nonce, mut block, chain) = init_decapitated_chain();
+        block.difficulty = Arc::new(min_difficulty);
         assert!(Chain::unvalidated_expand(&chain, block).validate().is_err());
     }
 
     #[test]
     fn cannot_forge_nonce() {
         let (mut nonce, mut block, chain) = init_decapitated_chain();
-
         nonce.increment();
         block.nonce = nonce;
+        assert!(Chain::expand(&chain, block).is_err());
 
-        assert!(Chain::expand(&chain, block.clone()).is_err());
+        let (mut nonce, mut block, chain) = init_decapitated_chain();
+        nonce.increment();
+        block.nonce = nonce;
         assert!(Chain::unvalidated_expand(&chain, block).validate().is_err());
     }
 
