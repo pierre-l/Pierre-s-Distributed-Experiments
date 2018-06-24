@@ -2,12 +2,17 @@ extern crate clap;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
+extern crate futures;
 extern crate network_simulator as netsim;
+extern crate ring;
+extern crate tokio_timer;
 
-use netsim::blockchain::{Chain, Difficulty, PowNode};
-use netsim::network::Network;
+pub mod blockchain;
+
+use blockchain::{Chain, Difficulty, PowNode};
 use clap::{App, Arg};
 use log::LevelFilter;
+use netsim::network::Network;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;

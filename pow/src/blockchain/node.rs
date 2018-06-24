@@ -1,8 +1,8 @@
 use blockchain::{mining_stream, Chain, MiningStateUpdater};
-use flatten_select;
 use futures::sync::mpsc::UnboundedSender;
 use futures::{self, future, Future, Stream};
-use network::{MPSCConnection, Node};
+use netsim::flatten_select;
+use netsim::network::{MPSCConnection, Node};
 use std::sync::Arc;
 use std::time::Duration;
 
