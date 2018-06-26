@@ -15,6 +15,7 @@ pub struct Block {
     nonce: Nonce,
     hash: Hash,
     difficulty: Arc<Difficulty>,
+    height: u32,
     previous_block_hash: Hash,
 }
 
@@ -27,13 +28,15 @@ impl Block {
         nonce: Nonce,
         difficulty: &Arc<Difficulty>,
         previous_block_hash: Hash,
+        height: u32,
     ) -> Block {
-        let hash = Hash::new(node_id, &nonce, difficulty, previous_block_hash.bytes());
+        let hash = Hash::new(node_id, &nonce, difficulty, height, previous_block_hash.bytes());
         Block {
             node_id,
             nonce,
             hash,
             difficulty: difficulty.clone(),
+            height,
             previous_block_hash,
         }
     }
@@ -42,10 +45,12 @@ impl Block {
     pub fn genesis_block(difficulty: Arc<Difficulty>) -> Block {
         let nonce = Nonce::new();
         let genesis_node_id = U32_MAX;
+        let height = 0;
         let hash = Hash::new(
             genesis_node_id,
             &nonce,
             &difficulty,
+            height,
             &[0u8; SHA256_OUTPUT_LEN],
         );
         Block {
@@ -53,6 +58,7 @@ impl Block {
             nonce,
             difficulty,
             previous_block_hash: hash.clone(),
+            height,
             hash,
         }
     }
@@ -63,6 +69,7 @@ impl Block {
                 self.node_id,
                 &self.nonce,
                 &self.difficulty,
+                self.height,
                 &self.previous_block_hash.bytes(),
             );
 
@@ -84,10 +91,10 @@ impl Block {
 pub struct Chain {
     head: Block,
     tail: Option<Arc<Chain>>,
-    height: usize,
 }
 
 const CHAIN_ERROR_HASH_MISMATCH: &str = "Hash mismatch";
+const CHAIN_ERROR_HEIGHT_MISMATCH: &str = "Height mismatch";
 const CHAIN_ERROR_INVALID_GENESIS: &str = "Invalid genesis";
 const CHAIN_ERROR_INVALID_DIFFICULTY: &str = "Invalid difficulty";
 
@@ -96,7 +103,6 @@ impl Chain {
         Chain {
             head: Block::genesis_block(Arc::new(difficulty)),
             tail: None,
-            height: 0,
         }
     }
 
@@ -112,7 +118,6 @@ impl Chain {
     fn unvalidated_expand(chain: &Arc<Chain>, block: Block) -> Chain {
         Chain {
             head: block,
-            height: chain.height + 1,
             tail: Some(chain.clone()),
         }
     }
@@ -123,9 +128,9 @@ impl Chain {
     }
 
     /// The height of the chain is the number of blocks composing the chain.
-    /// It is the same that the heigh of the head block.
-    pub fn height(&self) -> &usize {
-        &self.height
+    /// It is the same that the height of the head block.
+    pub fn height(&self) -> u32 {
+        self.head.height
     }
 
     fn hashes_match(chain: &Arc<Chain>, block: &Block) -> bool {
@@ -156,14 +161,18 @@ impl Chain {
         if let Some(ref tail) = self.tail {
             match self.head.validate() {
                 Ok(()) => {
-                    if Chain::hashes_match(tail, &self.head) {
-                        if tail.head.difficulty.eq(&self.head.difficulty) {
-                            Ok(())
+                    if self.height() == tail.height() + 1 {
+                        if Chain::hashes_match(tail, &self.head) {
+                            if tail.head.difficulty.eq(&self.head.difficulty) {
+                                Ok(())
+                            } else {
+                                Err(CHAIN_ERROR_INVALID_DIFFICULTY)
+                            }
                         } else {
-                            Err(CHAIN_ERROR_INVALID_DIFFICULTY)
+                            Err(CHAIN_ERROR_HASH_MISMATCH)
                         }
                     } else {
-                        Err(CHAIN_ERROR_HASH_MISMATCH)
+                        Err(CHAIN_ERROR_HEIGHT_MISMATCH)
                     }
                 }
                 Err(err) => Err(err),
@@ -192,7 +201,7 @@ mod tests {
         chain = mine_5_blocks(chain, node_id, &mut nonce);
 
         assert!(chain.validate().is_ok());
-        assert_eq!(5, chain.height);
+        assert_eq!(5, chain.height());
     }
 
     #[test]
@@ -236,6 +245,7 @@ mod tests {
             nonce.clone(),
             &chain.head().difficulty,
             chain.head().hash().clone(),
+            chain.height() + 1,
         );
 
         match Chain::expand(&chain, block) {
@@ -248,7 +258,7 @@ mod tests {
         loop {
             chain = try_to_mine_next_block(chain, node_id, nonce);
 
-            if chain.height == 5 {
+            if chain.height() == 5 {
                 return chain;
             }
         }

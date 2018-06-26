@@ -10,7 +10,7 @@ use std::time::Duration;
 #[derive(Clone)]
 pub struct Peer {
     sender: UnboundedSender<Arc<Chain>>,
-    known_chain_height: usize,
+    known_chain_height: u32,
     is_closed: bool,
 }
 
@@ -48,7 +48,7 @@ impl PowNode {
         peers: &mut Vec<Peer>,
         mining_state_updater: &MiningStateUpdater,
     ) {
-        let chain_height = *chain.height();
+        let chain_height = chain.height();
 
         peers.iter_mut().for_each(|peer| {
             if chain_height > peer.known_chain_height {
@@ -66,14 +66,14 @@ impl PowNode {
 
         peers.retain(|peer| !peer.is_closed);
 
-        if &chain_height > self.chain.height() {
+        if chain_height > self.chain.height() {
             mining_state_updater.mine_new_chain(chain.clone());
             self.chain = chain;
             debug!(
                 "[#{:05}]  New chain with height: {}",
                 self.node_id, chain_height
             );
-        } else if &chain_height == self.chain.height() {
+        } else if chain_height == self.chain.height() {
             let new_hash = chain.head.hash();
             let current_hash = self.chain.head.hash();
 
