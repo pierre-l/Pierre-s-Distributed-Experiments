@@ -18,4 +18,4 @@ This is an experimental project. Everything written here was not written for a p
 Contribution
 ------------
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in BNS by you, shall be licensed as MIT, without any additional terms or conditions.
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in PDE by you, shall be licensed as MIT, without any additional terms or conditions.
