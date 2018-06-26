@@ -1,7 +1,7 @@
 Pierre's Distributed Experiments
 =====================================
 
-[![Build Status](https://travis-ci.org/pierre-l/blockchain_network_simulation.svg?branch=master)](https://travis-ci.org/pierre-l/blockchain_network_simulation)
+[![Build Status](https://travis-ci.org/pierre-l/blockchain_network_simulation.svg?branch=master)](https://travis-ci.org/pierre-l/Pierre-s-Distributed-Experiments)
 [![License: MIT](https://img.shields.io/badge/License-MIT-brightgreen.svg)](https://opensource.org/licenses/MIT)
 
 PDE is a collection of simulated peer-to-peer systems. For now, it consists of:
