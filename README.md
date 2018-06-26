@@ -1,4 +1,4 @@
-Pierre's Rust Distributed Experiments
+Pierre's Distributed Experiments
 =====================================
 
 [![Build Status](https://travis-ci.org/pierre-l/blockchain_network_simulation.svg?branch=master)](https://travis-ci.org/pierre-l/blockchain_network_simulation)
