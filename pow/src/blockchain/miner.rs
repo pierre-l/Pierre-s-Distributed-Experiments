@@ -110,7 +110,7 @@ fn mine(state: &mut MiningState) -> MiningResult {
     match Chain::expand(&state.chain, block) {
         Ok(mined_chain) => {
             debug!(
-                "[N#{}] Mined new block with height: {}",
+                "[N#{}] Mined a new block with height: {}",
                 state.node_id, mined_chain.height
             );
             MiningResult::Success(mined_chain)

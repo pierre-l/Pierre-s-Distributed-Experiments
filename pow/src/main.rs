@@ -23,7 +23,7 @@ fn main() {
         .filter_level(LevelFilter::Info)
         .init();
 
-    let matches = App::new("The Blockchain Network Simulation")
+    let matches = App::new("Proof-of-Work Blockchain Network Simulation")
         .version("0.1")
         .author("Pierre L. <pierre.larger@gmail.com>")
         .about("Simulates a Proof-of-Work blockchain network")

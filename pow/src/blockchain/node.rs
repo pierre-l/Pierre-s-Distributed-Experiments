@@ -140,7 +140,7 @@ impl Node<Arc<Chain>> for PowNode {
                     }
                     NodeEvent::MinedChain(chain) => {
                         info!(
-                            "[#{:05}] Mined new block {:?}, height {}",
+                            "[#{:05}] Mined a new block: {:?}, height {}",
                             self.node_id,
                             chain.head().hash(),
                             chain.height()
