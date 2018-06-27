@@ -11,12 +11,29 @@ use std::sync::Arc;
 use std::u32::MAX as U32_MAX;
 
 pub struct Block {
-    node_id: u32,
-    nonce: Nonce,
+    /// in order to protect these fields to being tampered with, all of them
+    /// are used as a the hash input.
     hash: Hash,
+    /// Including the node id among these fields will make every node produce a
+    /// different hash. If every node was to mine the exact same data, it would
+    /// dramatically increase the probability of natural chain forks. In the
+    /// Bitcoin network, this is already enforced by the coinbase transaction.
+    node_id: u32,
+    /// The nonce field enables a node to produce a different hash for every
+    /// mining attempt.
+    nonce: Nonce,
+    /// For a block to be added to the chain and accepted by the other nodes,
+    /// its hash must be inferior to the difficulty threshold.
     difficulty: Arc<Difficulty>,
-    height: u32,
+    /// By including the hash of the previous block among the input of the hash
+    /// of the current block, it links it to the previous one, making the chain
+    /// more secure.
     previous_block_hash: Hash,
+    /// Including the height in the hash input helps producing different hashes
+    /// in the case where all the other fields have the same value for two
+    /// different blocks. It has other benefits, like helping identifying a block
+    /// or preventing us from having to count all the blocks one by one.
+    height: u32,
 }
 
 const HEAD_ERROR_INVALID_HASH: &str = "Invalid hash";
