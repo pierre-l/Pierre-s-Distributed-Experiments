@@ -10,7 +10,7 @@ use std::time::Duration;
 #[derive(Clone)]
 pub struct Peer {
     sender: UnboundedSender<Arc<Chain>>,
-    known_chain_height: u32,
+    last_known_chain: Arc<Chain>,
     is_closed: bool,
 }
 
@@ -31,10 +31,10 @@ pub struct PowNode {
 }
 
 impl PowNode {
-    pub fn new(node_id: u32, initial_chain: Arc<Chain>, mining_attempt_delay: Duration) -> PowNode {
+    pub fn new(node_id: u32, genesis_chain: Arc<Chain>, mining_attempt_delay: Duration) -> PowNode {
         PowNode {
             node_id,
-            chain: initial_chain,
+            chain: genesis_chain,
             mining_attempt_delay,
         }
     }
@@ -51,10 +51,10 @@ impl PowNode {
         let chain_height = chain.height();
 
         peers.iter_mut().for_each(|peer| {
-            if chain_height > peer.known_chain_height {
+            if chain.stronger_than(&peer.last_known_chain) {
                 match &peer.sender.unbounded_send(chain.clone()) {
                     Ok(()) => {
-                        peer.known_chain_height = chain_height;
+                        peer.last_known_chain = chain.clone();
                     }
                     Err(err) => {
                         info!("Lost connection: {}", err);
@@ -66,7 +66,7 @@ impl PowNode {
 
         peers.retain(|peer| !peer.is_closed);
 
-        if chain_height > self.chain.height() {
+        if chain.stronger_than(&self.chain) {
             mining_state_updater.mine_new_chain(chain.clone());
             self.chain = chain;
             debug!(
@@ -99,6 +99,7 @@ impl Node<Arc<Chain>> for PowNode {
         ) = mining_stream(self.node_id, self.chain.clone(), self.mining_attempt_delay);
 
         let node_id = self.node_id;
+        let genesis_chain = self.chain.clone();
         let peer_stream = connection_stream.map(move |connection| {
             debug!("[#{:05}] Connection received.", node_id);
             let (sender, receiver) = connection.split();
@@ -110,7 +111,7 @@ impl Node<Arc<Chain>> for PowNode {
             // Send a peer first, then every update received.
             futures::stream::once(Ok(NodeEvent::Peer(Peer {
                 sender,
-                known_chain_height: 0,
+                last_known_chain: genesis_chain.clone(),
                 is_closed: false,
             }))).chain(reception)
         });

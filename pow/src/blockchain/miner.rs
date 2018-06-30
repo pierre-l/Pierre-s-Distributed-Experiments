@@ -60,7 +60,7 @@ pub fn mining_stream(
         // Now we can mine or update the state.
         .map(move |chain_update_option|{
             if let Some(chain_update) = chain_update_option{
-                if state.chain.height() < chain_update.height() {
+                if chain_update.stronger_than(&state.chain) {
                     state.chain = chain_update.clone();
                     state.nonce = Nonce::new();
                 }

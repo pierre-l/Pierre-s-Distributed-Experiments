@@ -150,6 +150,11 @@ impl Chain {
         self.head.height
     }
 
+    pub fn stronger_than(&self, other: &Chain) -> bool {
+        // Since this is a constant difficulty simulation, the strongest chain is the longest.
+        self.height() > other.height()
+    }
+
     fn hashes_match(chain: &Arc<Chain>, block: &Block) -> bool {
         chain.head.hash.eq(&block.previous_block_hash)
     }
