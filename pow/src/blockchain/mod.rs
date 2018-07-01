@@ -47,7 +47,13 @@ impl Block {
         previous_block_hash: Hash,
         height: u32,
     ) -> Block {
-        let hash = Hash::new(node_id, &nonce, difficulty, height, previous_block_hash.bytes());
+        let hash = Hash::new(
+            node_id,
+            &nonce,
+            difficulty,
+            height,
+            previous_block_hash.bytes(),
+        );
         Block {
             node_id,
             nonce,

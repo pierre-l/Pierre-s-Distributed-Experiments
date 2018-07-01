@@ -90,14 +90,14 @@ fn main() {
         matches.value_of("difficulty_factor"),
         "15",
         224,
-"Invalid difficulty factor, expected [1-224]"
+        "Invalid difficulty factor, expected [1-224]",
     );
 
-    let duration_in_seconds: u64 = parse_unsigned_integer(matches
-        .value_of("duration_in_seconds"),
+    let duration_in_seconds: u64 = parse_unsigned_integer(
+        matches.value_of("duration_in_seconds"),
         "30",
         999999,
-        "Invalid duration in seconds, expected [1-999999]"
+        "Invalid duration in seconds, expected [1-999999]",
     );
 
     let mining_delay: u64 = parse_unsigned_integer(
@@ -150,11 +150,11 @@ pub fn parse_unsigned_integer<I>(
     default: &str,
     max_value: I,
     error_message: &'static str,
-) -> I where I: FromStr<Err=ParseIntError> + Debug + PartialOrd{
-    let value = raw_value
-        .unwrap_or(default)
-        .parse()
-        .expect(error_message);
+) -> I
+where
+    I: FromStr<Err = ParseIntError> + Debug + PartialOrd,
+{
+    let value = raw_value.unwrap_or(default).parse().expect(error_message);
 
     if value > max_value {
         panic!(error_message);

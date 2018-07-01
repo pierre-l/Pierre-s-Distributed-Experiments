@@ -111,8 +111,7 @@ where
 }
 
 /// A very naive HashSet for tuples.
-/// May not be the most efficient because 'contains' method instantiate a new tuple, requiring
-/// owned items.
+/// May not be the most efficient because 'contains' method instantiate a new tuple, requiring owned items.
 struct BiSet<T>
 where
     T: Hash + Ord,

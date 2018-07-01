@@ -7,16 +7,14 @@ use std::u8::MAX as U8_MAX;
 
 const DIFFICULTY_BYTES_LEN: usize = SHA256_OUTPUT_LEN;
 #[derive(Clone, PartialEq, Eq)]
-pub struct Difficulty{
+pub struct Difficulty {
     threshold: [u8; SHA256_OUTPUT_LEN],
 }
 
 impl Difficulty {
     pub fn min_difficulty() -> Difficulty {
         let array = [U8_MAX as u8; SHA256_OUTPUT_LEN];
-        Difficulty{
-            threshold: array,
-        }
+        Difficulty { threshold: array }
     }
 
     pub fn increase(&mut self) {
@@ -61,15 +59,19 @@ pub struct Hash {
 }
 
 impl Hash {
-    pub fn new(node_id: u32, nonce: &Nonce, difficulty: &Difficulty, height: u32, previous_hash: &[u8]) -> Hash {
+    pub fn new(
+        node_id: u32,
+        nonce: &Nonce,
+        difficulty: &Difficulty,
+        height: u32,
+        previous_hash: &[u8],
+    ) -> Hash {
         let difficulty_bytes = difficulty.threshold.as_ref();
-        let mut data_to_hash = [0u8;
-            8 // Length of the nonce field.
+        let mut data_to_hash = [0u8; 8 // Length of the nonce field.
             + 4 // Length of the node_id field.
             + 4 // Length of the height field.
             + SHA256_OUTPUT_LEN // Length of the hash.
-            + DIFFICULTY_BYTES_LEN
-        ];
+            + DIFFICULTY_BYTES_LEN];
 
         data_to_hash[..8].clone_from_slice(&nonce.0[..8]);
 
@@ -100,17 +102,16 @@ impl Hash {
     }
 }
 
-fn write_u32(to_array: &mut [u8], number: u32, index: usize){
+fn write_u32(to_array: &mut [u8], number: u32, index: usize) {
     to_array[index] = ((number >> 24) & 0xff) as u8;
     to_array[index + 1] = ((number >> 16) & 0xff) as u8;
     to_array[index + 2] = ((number >> 8) & 0xff) as u8;
     to_array[index + 3] = (number & 0xff) as u8;
 }
 
-fn write_array(to_array: &mut [u8], array: &[u8], index: usize){
+fn write_array(to_array: &mut [u8], array: &[u8], index: usize) {
     let array_len = array.len();
-    to_array[index..(array_len + index)]
-        .clone_from_slice(&array[..array_len])
+    to_array[index..(array_len + index)].clone_from_slice(&array[..array_len])
 }
 
 impl Debug for Hash {

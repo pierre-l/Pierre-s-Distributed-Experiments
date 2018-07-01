@@ -106,22 +106,27 @@ fn mine(state: &mut MiningState) -> MiningResult {
     let head_hash = state.chain.head().hash().clone();
     let difficulty = &state.chain.head().difficulty;
     let new_height = state.chain.height() + 1;
-    let block = Block::new(state.node_id, state.nonce.clone(), difficulty, head_hash, new_height);
+    let block = Block::new(
+        state.node_id,
+        state.nonce.clone(),
+        difficulty,
+        head_hash,
+        new_height,
+    );
 
     match Chain::expand(&state.chain, block) {
         Ok(mined_chain) => {
             debug!(
                 "[N#{}] Mined a new block with height: {}",
-                state.node_id, mined_chain.height()
+                state.node_id,
+                mined_chain.height()
             );
             MiningResult::Success(mined_chain)
         }
         Err(err) => {
             debug!(
                 "[N#{}] Failed to mine a new block for height {}. Cause: {}",
-                state.node_id,
-                new_height,
-                err
+                state.node_id, new_height, err
             );
             MiningResult::Failure
         }
