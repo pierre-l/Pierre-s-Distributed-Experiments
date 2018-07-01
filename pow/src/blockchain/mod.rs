@@ -80,6 +80,7 @@ impl Block {
         }
     }
 
+    /// Checks that the hash matches the fields and that it does not exceed the difficulty threshold.
     pub fn validate(&self) -> Result<(), &'static str> {
         if self.hash.less_than(&self.difficulty) {
             let hash = Hash::new(
@@ -132,6 +133,8 @@ impl Chain {
         Ok(Arc::new(new_chain))
     }
 
+    /// Creates a new chain by adding a block to an existing chain.
+    /// Will succeed even if the block is invalid or the hashes do not match.
     fn unvalidated_expand(chain: &Arc<Chain>, block: Block) -> Chain {
         Chain {
             head: block,
@@ -152,6 +155,8 @@ impl Chain {
 
     pub fn stronger_than(&self, other: &Chain) -> bool {
         // Since this is a constant difficulty simulation, the strongest chain is the longest.
+        // This is not the case with a dynamic difficulty like in the Bitcoin network where the
+        // strongest chain is the chain with the most work.
         self.height() > other.height()
     }
 

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio_timer::Interval;
 
-pub struct MiningState {
+struct MiningState {
     chain: Arc<Chain>,
     nonce: Nonce,
     node_id: u32,

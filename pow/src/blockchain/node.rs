@@ -40,8 +40,8 @@ impl PowNode {
     }
 
     /// Propagates the new chain to peers and to the mining stream.
-    /// The propagation only happens if the update is a chain with a higher
-    /// height than the known height of either the peer or the mining stream.
+    /// The propagation only happens if the update is a stronger chain
+    /// than the known one of either the peer or the mining stream.
     fn propagate(
         &mut self,
         chain: Arc<Chain>,

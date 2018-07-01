@@ -8,7 +8,7 @@ Features
 
 Simulates a Proof-of-Work blockchain network with thousand of nodes.
 ```
-INFO 2018-06-21T21:45:32Z: Chain difficulty: 00007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+INFO 2018-06-21T21:45:32Z: Chain difficulty threshold: 00007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 INFO 2018-06-21T21:45:33Z: [#0504] Mined a new block: 00007c1a4d17781f1765ae2b12528083e9381a5a09824ffe809079f5a3882275, height 1
 INFO 2018-06-21T21:45:34Z: [#0090] Mined a new block: 0000738f72882544bbc5889ddd8d1292980d951441bd8ece83a32423d4223c47, height 2
 INFO 2018-06-21T21:45:35Z: [#0740] Mined a new block: 000017751ed474dd6b6ee56485839b60a8c6ddb7ce508ceba7f85e688d6d4dda, height 3

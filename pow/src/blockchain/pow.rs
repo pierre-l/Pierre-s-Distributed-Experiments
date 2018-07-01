@@ -7,37 +7,41 @@ use std::u8::MAX as U8_MAX;
 
 const DIFFICULTY_BYTES_LEN: usize = SHA256_OUTPUT_LEN;
 #[derive(Clone, PartialEq, Eq)]
-pub struct Difficulty([u8; SHA256_OUTPUT_LEN]);
+pub struct Difficulty{
+    threshold: [u8; SHA256_OUTPUT_LEN],
+}
 
 impl Difficulty {
     pub fn min_difficulty() -> Difficulty {
         let array = [U8_MAX as u8; SHA256_OUTPUT_LEN];
-        Difficulty(array)
+        Difficulty{
+            threshold: array,
+        }
     }
 
     pub fn increase(&mut self) {
-        self.divide_inner_by_two()
+        self.divide_threshold_by_two()
     }
 
-    fn divide_inner_by_two(&mut self) {
+    fn divide_threshold_by_two(&mut self) {
         let mut index_to_split = 0;
 
-        while self.0[index_to_split] == 0 {
+        while self.threshold[index_to_split] == 0 {
             index_to_split += 1;
         }
-        self.0[index_to_split] /= 2;
+        self.threshold[index_to_split] /= 2;
 
-        if self.0[index_to_split] == 0 {
+        if self.threshold[index_to_split] == 0 {
             let next_index = index_to_split + 1;
 
-            self.0[next_index] = U8_MAX / 2;
+            self.threshold[next_index] = U8_MAX / 2;
         }
     }
 }
 
 impl Debug for Difficulty {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
-        print_u8_as_hexa(&self.0, f)
+        print_u8_as_hexa(&self.threshold, f)
     }
 }
 
@@ -48,7 +52,7 @@ pub struct Hash {
 
 impl Hash {
     pub fn new(node_id: u32, nonce: &Nonce, difficulty: &Difficulty, height: u32, previous_hash: &[u8]) -> Hash {
-        let difficulty_bytes = difficulty.0.as_ref();
+        let difficulty_bytes = difficulty.threshold.as_ref();
         let mut data_to_hash = [0u8;
             8 // Length of the nonce field.
             + 4 // Length of the node_id field.
@@ -72,7 +76,7 @@ impl Hash {
 
     pub fn less_than(&self, difficulty: &Difficulty) -> bool {
         let hash_bytes = self.bytes();
-        let difficulty_bytes = &difficulty.0;
+        let difficulty_bytes = &difficulty.threshold;
 
         debug!("Candidate:  {:?}", hash_bytes);
         debug!("Difficulty: {:?}", difficulty_bytes);
