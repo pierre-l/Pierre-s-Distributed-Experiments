@@ -13,6 +13,10 @@ use blockchain::{Chain, Difficulty, PowNode};
 use clap::{App, Arg};
 use log::LevelFilter;
 use netsim::network::Network;
+use std::cmp::PartialOrd;
+use std::fmt::Debug;
+use std::num::ParseIntError;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -68,35 +72,40 @@ fn main() {
         )
         .get_matches();
 
-    let number_of_nodes: u32 = matches
-        .value_of("number_of_nodes")
-        .unwrap_or("2048")
-        .parse()
-        .expect("Invalid number of nodes, expected [1-10000]");
+    let number_of_nodes: u32 = parse_unsigned_integer(
+        matches.value_of("number_of_nodes"),
+        "2048",
+        100000,
+        "Invalid number of nodes, expected [1-100000]",
+    );
 
-    let initiated_connections_per_node: u8 = matches
-        .value_of("initiated_connections_per_node")
-        .unwrap_or("3")
-        .parse()
-        .expect("Invalid number of initiated connections per node, expected [1-255]");
+    let initiated_connections_per_node: u8 = parse_unsigned_integer(
+        matches.value_of("initiated_connections_per_node"),
+        "3",
+        255,
+        "Invalid number of initiated connections per node, expected [1-255]",
+    );
 
-    let difficulty_factor: u8 = matches
-        .value_of("difficulty_factor")
-        .unwrap_or("15")
-        .parse()
-        .expect("Invalid difficulty factor, expected [1-255]");
+    let difficulty_factor: u8 = parse_unsigned_integer(
+        matches.value_of("difficulty_factor"),
+        "15",
+        224,
+"Invalid difficulty factor, expected [1-224]"
+    );
 
-    let duration_in_seconds: u64 = matches
-        .value_of("duration_in_seconds")
-        .unwrap_or("30")
-        .parse()
-        .expect("Invalid duration in seconds, expected [1-18,446,744,073,709,551,615]");
+    let duration_in_seconds: u64 = parse_unsigned_integer(matches
+        .value_of("duration_in_seconds"),
+        "30",
+        999999,
+        "Invalid duration in seconds, expected [1-999999]"
+    );
 
-    let mining_delay: u64 = matches
-        .value_of("mining_delay")
-        .unwrap_or("10")
-        .parse()
-        .expect("Invalid hash duration in milliseconds, expected [1-18,446,744,073,709,551,615]");
+    let mining_delay: u64 = parse_unsigned_integer(
+        matches.value_of("mining_delay"),
+        "10",
+        999999,
+        "Invalid hash duration in milliseconds, expected [1-999999]",
+    );
 
     pow_network_simulation(
         number_of_nodes,
@@ -134,4 +143,22 @@ pub fn pow_network_simulation(
         },
         duration,
     );
+}
+
+pub fn parse_unsigned_integer<I>(
+    raw_value: Option<&str>,
+    default: &str,
+    max_value: I,
+    error_message: &'static str,
+) -> I where I: FromStr<Err=ParseIntError> + Debug + PartialOrd{
+    let value = raw_value
+        .unwrap_or(default)
+        .parse()
+        .expect(error_message);
+
+    if value > max_value {
+        panic!(error_message);
+    } else {
+        value
+    }
 }

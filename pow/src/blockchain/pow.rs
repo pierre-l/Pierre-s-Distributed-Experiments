@@ -26,13 +26,23 @@ impl Difficulty {
     fn divide_threshold_by_two(&mut self) {
         let mut index_to_split = 0;
 
+        let max_index = self.threshold.len();
         while self.threshold[index_to_split] == 0 {
             index_to_split += 1;
+
+            if index_to_split >= max_index {
+                panic!("Exceeded the maximum difficulty.")
+            }
         }
+
         self.threshold[index_to_split] /= 2;
 
         if self.threshold[index_to_split] == 0 {
             let next_index = index_to_split + 1;
+
+            if next_index >= max_index {
+                panic!("Exceeded the maximum difficulty.")
+            }
 
             self.threshold[next_index] = U8_MAX / 2;
         }
