@@ -149,7 +149,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::{future, Future};
+    use futures::Future;
     use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
 
@@ -180,9 +180,9 @@ mod tests {
                 }
 
                 let reception = receiver
-                    .for_each(move |_message| {
+                    .into_future().map(move |(_message, _tail)| {
                         received_messages.fetch_add(1, Ordering::Relaxed);
-                        future::ok(())
+                        drop(sender); // This will drop the connection too.
                     })
                     .map_err(|_| panic!());
                 tokio::spawn(reception)
@@ -195,8 +195,9 @@ mod tests {
     #[test]
     fn can_create_a_network() {
         new_network_test(4, 1);
-        new_network_test(8, 2);
-        new_network_test(8, 1);
+        new_network_test(16, 1);
+        new_network_test(128, 2);
+        new_network_test(256, 4);
     }
 
     fn new_network_test(network_size: u32, initiated_connections: u8) {
