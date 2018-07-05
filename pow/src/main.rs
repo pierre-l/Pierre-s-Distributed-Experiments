@@ -22,6 +22,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 fn main() {
+    // Always print backtrace on panic.
+    ::std::env::set_var("RUST_BACKTRACE", "1");
+
     env_logger::Builder::from_default_env()
         .default_format_module_path(false)
         .filter_level(LevelFilter::Info)
