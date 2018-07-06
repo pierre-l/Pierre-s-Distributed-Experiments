@@ -1,5 +1,5 @@
 [workspace]
-members = ["network_simulator", "pow",]
+members = ["network_simulator", "pow", "btclike",]
 
 [profile.dev]
 opt-level = 3
