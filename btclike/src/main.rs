@@ -4,7 +4,7 @@ extern crate ring;
 extern crate untrusted;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
-extern crate serde_json; // TODO Use a binary format.
+extern crate bincode;
 
 use log::LevelFilter;
 use ring::{rand, signature};
@@ -35,8 +35,8 @@ enum Error{
     CryptographyError,
 }
 
-impl From<serde_json::Error> for Error{
-    fn from(err: serde_json::Error) -> Self {
+impl From<bincode::Error> for Error{
+    fn from(err: bincode::Error) -> Self {
         Error::SerializationError(
             format!("Could not properly serialize the transaction. Reason: {}", err)
         )
@@ -197,7 +197,7 @@ impl SignedMoveTx{
     fn from_raw_tx(raw_tx: RawMoveTx, key_pairs: Vec<&KeyPair>)
                    -> Result<SignedMoveTx, Error>
     {
-        let serialized: String = serde_json::to_string(&raw_tx)?;
+        let serialized = bincode::serialize(&raw_tx)?;
 
         let mut raw_input = raw_tx.input;
         let output = raw_tx.output;
@@ -212,7 +212,7 @@ impl SignedMoveTx{
         for key_pair in key_pairs {
             let raw_tx_in = raw_input.pop().unwrap();
 
-            let signed_tx_in = SignedTxIn::from_raw_tx_in(raw_tx_in, serialized.as_bytes(), key_pair);
+            let signed_tx_in = SignedTxIn::from_raw_tx_in(raw_tx_in, &serialized, key_pair);
             signed_input.push(signed_tx_in);
         }
 
@@ -242,7 +242,7 @@ impl SignedMoveTx{
         }
 
         let raw_next_tx = self.clone_without_signatures();
-        let serialized = serde_json::to_string(&raw_next_tx)?;
+        let serialized = bincode::serialize(&raw_next_tx)?;
 
         for (i, prev_tx_out) in prev_tx_outs.iter().enumerate() {
             let tx_in = &self.input[i];
@@ -252,7 +252,7 @@ impl SignedMoveTx{
                 return Err(Error::InvalidAddress);
             }
 
-            tx_in.verify_signature(serialized.as_bytes())?
+            tx_in.verify_signature(&serialized)?
         }
 
         Ok(())
