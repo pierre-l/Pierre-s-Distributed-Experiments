@@ -175,27 +175,16 @@ mod tests {
     fn can_sign_and_verify_transactions() {
         let key_pair_generator = KeyPairGenerator::new();
 
-        let prev_to_keypair = key_pair_generator.random_keypair().ok().unwrap();
-        let prev_to_pub_key = prev_to_keypair.pub_key();
-        let prev_to_addr = Address::from_pub_key(&prev_to_pub_key);
-
-        let prev_output = TxOut{
-            amount: 10,
-            to_address: prev_to_addr,
-        };
+        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator);
 
         let next_input = RawTxIn{
             prev_tx_output_index: 0,
             prev_tx_hash: Hash::min(),
         };
 
-        let next_to_keypair = key_pair_generator.random_keypair().ok().unwrap();
-        let next_to_pub_key = next_to_keypair.pub_key();
-        let next_to_addr = Address::from_pub_key(&next_to_pub_key);
-
         let next_output = TxOut{
             amount: 10,
-            to_address: next_to_addr,
+            to_address: next_address(&key_pair_generator),
         };
 
         let next_tx = RawMoveTx{
@@ -203,8 +192,85 @@ mod tests {
             output: vec![next_output],
         };
 
-        let signed_tx = SignedMoveTx::from_raw_tx(next_tx, vec![&prev_to_keypair]).ok().unwrap();
+        let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
+                                                  vec![&prev_to_keypair]).ok().unwrap();
 
         signed_tx.verify_signatures(&vec![prev_output]).ok().unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_pub_key() {
+        let key_pair_generator = KeyPairGenerator::new();
+
+        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator);
+
+        let next_input = RawTxIn{
+            prev_tx_output_index: 0,
+            prev_tx_hash: Hash::min(),
+        };
+
+        let next_output = TxOut{
+            amount: 10,
+            to_address: next_address(&key_pair_generator),
+        };
+
+        let next_tx = RawMoveTx{
+            input: vec![next_input],
+            output: vec![next_output],
+        };
+
+        let mut signed_tx = SignedMoveTx::from_raw_tx(next_tx,
+                                                  vec![&prev_to_keypair]).ok().unwrap();
+
+        let invalid_key_pair = key_pair_generator.random_keypair().ok().unwrap();
+        signed_tx.input[0].sig_public_key = invalid_key_pair.pub_key();
+
+        signed_tx.verify_signatures(&vec![prev_output]).err().unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_key_pair() {
+        let key_pair_generator = KeyPairGenerator::new();
+
+        let (_prev_to_keypair, prev_output) = prev_context(&key_pair_generator);
+
+        let next_input = RawTxIn{
+            prev_tx_output_index: 0,
+            prev_tx_hash: Hash::min(),
+        };
+
+        let next_output = TxOut{
+            amount: 10,
+            to_address: next_address(&key_pair_generator),
+        };
+
+        let next_tx = RawMoveTx{
+            input: vec![next_input],
+            output: vec![next_output],
+        };
+
+        let invalid_key_pair = key_pair_generator.random_keypair().ok().unwrap();
+        let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
+                                                  vec![&invalid_key_pair]).ok().unwrap();
+
+        signed_tx.verify_signatures(&vec![prev_output]).err().unwrap();
+    }
+
+    fn next_address(key_pair_generator: &KeyPairGenerator) -> Address {
+        let next_to_keypair = key_pair_generator.random_keypair().ok().unwrap();
+        let next_to_pub_key = next_to_keypair.pub_key();
+        let next_to_addr = Address::from_pub_key(&next_to_pub_key);
+        next_to_addr
+    }
+
+    fn prev_context(key_pair_generator: &KeyPairGenerator) -> (KeyPair, TxOut) {
+        let prev_to_keypair = key_pair_generator.random_keypair().ok().unwrap();
+        let prev_to_pub_key = prev_to_keypair.pub_key();
+        let prev_to_addr = Address::from_pub_key(&prev_to_pub_key);
+        let prev_output = TxOut {
+            amount: 10,
+            to_address: prev_to_addr,
+        };
+        (prev_to_keypair, prev_output)
     }
 }
