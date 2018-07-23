@@ -6,3 +6,5 @@ authors = ["pierre-l <pierre.larger@gmail.com>"]
 [dependencies]
 env_logger = "0.5.10"
 log = "0.4.1"
+ring = "0.12.1"
+untrusted = "0.5.1"
