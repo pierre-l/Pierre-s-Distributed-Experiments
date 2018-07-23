@@ -11,6 +11,7 @@ enum Error{
     SerializationError(String),
     InvalidAddress,
     TxIoMismatch,
+    InvalidTxAmount,
     CryptographyError,
 }
 
@@ -141,9 +142,23 @@ impl SignedMoveTx{
         }
     }
 
-    fn verify_signatures(self, prev_tx_outs: &Vec<TxOut>) -> Result<(), Error>{
+    fn verify(self, prev_tx_outs: &Vec<TxOut>) -> Result<(), Error>{
         if prev_tx_outs.len() != self.input.len() {
             return Err(Error::TxIoMismatch);
+        }
+
+        let mut in_amount = 0;
+        prev_tx_outs.iter().for_each(|tx_out|{
+            in_amount += tx_out.amount;
+        });
+
+        let mut out_amount = 0;
+        self.output.iter().for_each(|tx_out|{
+            out_amount += tx_out.amount;
+        });
+
+        if in_amount < out_amount {
+            return Err(Error::InvalidTxAmount);
         }
 
         let raw_next_tx = self.clone_without_signatures();
@@ -175,7 +190,8 @@ mod tests {
     fn can_sign_and_verify_transactions() {
         let key_pair_generator = KeyPairGenerator::new();
 
-        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator);
+        let initial_amount = 10u32;
+        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator, initial_amount);
 
         let next_input = RawTxIn{
             prev_tx_output_index: 0,
@@ -183,7 +199,7 @@ mod tests {
         };
 
         let next_output = TxOut{
-            amount: 10,
+            amount: initial_amount,
             to_address: next_address(&key_pair_generator),
         };
 
@@ -195,14 +211,43 @@ mod tests {
         let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
                                                   vec![&prev_to_keypair]).ok().unwrap();
 
-        signed_tx.verify_signatures(&vec![prev_output]).ok().unwrap();
+        signed_tx.verify(&vec![prev_output]).ok().unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_amount() {
+        let key_pair_generator = KeyPairGenerator::new();
+
+        let initial_amount = 10u32;
+        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator, initial_amount);
+
+        let next_input = RawTxIn{
+            prev_tx_output_index: 0,
+            prev_tx_hash: Hash::min(),
+        };
+
+        let next_output = TxOut{
+            amount: initial_amount + 1,
+            to_address: next_address(&key_pair_generator),
+        };
+
+        let next_tx = RawMoveTx{
+            input: vec![next_input],
+            output: vec![next_output],
+        };
+
+        let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
+                                                  vec![&prev_to_keypair]).ok().unwrap();
+
+        signed_tx.verify(&vec![prev_output]).err().unwrap();
     }
 
     #[test]
     fn rejects_invalid_pub_key() {
         let key_pair_generator = KeyPairGenerator::new();
 
-        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator);
+        let initial_amount = 10u32;
+        let (prev_to_keypair, prev_output) = prev_context(&key_pair_generator, initial_amount);
 
         let next_input = RawTxIn{
             prev_tx_output_index: 0,
@@ -225,14 +270,15 @@ mod tests {
         let invalid_key_pair = key_pair_generator.random_keypair().ok().unwrap();
         signed_tx.input[0].sig_public_key = invalid_key_pair.pub_key();
 
-        signed_tx.verify_signatures(&vec![prev_output]).err().unwrap();
+        signed_tx.verify(&vec![prev_output]).err().unwrap();
     }
 
     #[test]
     fn rejects_invalid_key_pair() {
         let key_pair_generator = KeyPairGenerator::new();
 
-        let (_prev_to_keypair, prev_output) = prev_context(&key_pair_generator);
+        let initial_amount = 10u32;
+        let (_prev_to_keypair, prev_output) = prev_context(&key_pair_generator, initial_amount);
 
         let next_input = RawTxIn{
             prev_tx_output_index: 0,
@@ -253,7 +299,7 @@ mod tests {
         let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
                                                   vec![&invalid_key_pair]).ok().unwrap();
 
-        signed_tx.verify_signatures(&vec![prev_output]).err().unwrap();
+        signed_tx.verify(&vec![prev_output]).err().unwrap();
     }
 
     fn next_address(key_pair_generator: &KeyPairGenerator) -> Address {
@@ -263,12 +309,12 @@ mod tests {
         next_to_addr
     }
 
-    fn prev_context(key_pair_generator: &KeyPairGenerator) -> (KeyPair, TxOut) {
+    fn prev_context(key_pair_generator: &KeyPairGenerator, amount: u32) -> (KeyPair, TxOut) {
         let prev_to_keypair = key_pair_generator.random_keypair().ok().unwrap();
         let prev_to_pub_key = prev_to_keypair.pub_key();
         let prev_to_addr = Address::from_pub_key(&prev_to_pub_key);
         let prev_output = TxOut {
-            amount: 10,
+            amount,
             to_address: prev_to_addr,
         };
         (prev_to_keypair, prev_output)
