@@ -8,6 +8,9 @@ PDE is a collection of simulated peer-to-peer systems. For now, it consists of:
 
 * a [P2P network simulator](./network_simulator/),
 * a [Proof-of-Work blockchain simulation](./pow/).
+* (WIP) a simplified Bitcoin-like [cryptocurrency simulation](./btclike)
+
+
 
 These are written in [Rust](https://www.rust-lang.org/en-US/) and rely on the [Tokio and futures libraries](https://tokio.rs/).
 
