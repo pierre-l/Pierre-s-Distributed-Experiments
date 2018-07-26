@@ -1,33 +1,10 @@
-use ring::error::Unspecified;
 use crypto::Hash;
 use crypto::PubKey;
 use crypto::Signature;
 use crypto::KeyPair;
 use crypto::hash;
 use bincode;
-
-enum Error{
-    InvalidNumberOfKeyPairs(String),
-    SerializationError(String),
-    InvalidAddress,
-    TxIoMismatch,
-    InvalidTxAmount,
-    CryptographyError,
-}
-
-impl From<bincode::Error> for Error{
-    fn from(err: bincode::Error) -> Self {
-        Error::SerializationError(
-            format!("Could not properly serialize the transaction. Reason: {}", err)
-        )
-    }
-}
-
-impl From<Unspecified> for Error{
-    fn from(_: Unspecified) -> Self {
-        Error::CryptographyError
-    }
-}
+use Error;
 
 #[derive(Serialize, Clone, PartialEq)]
 pub struct Address(Hash);
@@ -45,7 +22,7 @@ struct RawTxIn{
 }
 
 #[derive(Serialize, Clone)]
-struct TxOut{
+pub struct TxOut{
     amount: u32,
     to_address: Address,
 }
@@ -56,7 +33,7 @@ struct RawMoveTx{
     output: Vec<TxOut>,
 }
 
-#[derive(Clone)]
+#[derive(Serialize, Clone)]
 struct SignedTxIn{
     prev_tx_hash: Hash,
     prev_tx_output_index: u8,
@@ -94,14 +71,15 @@ impl SignedTxIn{
     }
 }
 
-struct SignedMoveTx{
+#[derive(Serialize)]
+pub struct SignedTx {
     input: Vec<SignedTxIn>,
     output: Vec<TxOut>,
 }
 
-impl SignedMoveTx{
+impl SignedTx {
     fn from_raw_tx(raw_tx: RawMoveTx, key_pairs: Vec<&KeyPair>)
-                   -> Result<SignedMoveTx, Error>
+                   -> Result<SignedTx, Error>
     {
         let serialized = bincode::serialize(&raw_tx)?;
 
@@ -122,7 +100,7 @@ impl SignedMoveTx{
             signed_input.push(signed_tx_in);
         }
 
-        Ok(SignedMoveTx{
+        Ok(SignedTx {
             input: signed_input,
             output,
         })
@@ -142,9 +120,19 @@ impl SignedMoveTx{
         }
     }
 
-    fn verify(self, prev_tx_outs: &Vec<TxOut>) -> Result<(), Error>{
-        if prev_tx_outs.len() != self.input.len() {
-            return Err(Error::TxIoMismatch);
+    pub fn verify<S>(&self, utxo_store: &S) -> Result<(), Error>
+    where
+        S: UtxoStore,
+    {
+        let mut prev_tx_outs = vec![];
+
+        for tx_in in &self.input {
+            let prev_tx_out = utxo_store.find(
+                &tx_in.prev_tx_hash,
+                &tx_in.prev_tx_output_index
+            );
+
+            prev_tx_outs.push(prev_tx_out);
         }
 
         let mut in_amount = 0;
@@ -179,7 +167,9 @@ impl SignedMoveTx{
     }
 }
 
-
+pub trait UtxoStore {
+    fn find(&self, transaction_hash: &Hash, txo_index: &u8) -> &TxOut;
+}
 
 #[cfg(test)]
 mod tests {
@@ -208,10 +198,10 @@ mod tests {
             output: vec![next_output],
         };
 
-        let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
-                                                  vec![&prev_to_keypair]).ok().unwrap();
+        let signed_tx = SignedTx::from_raw_tx(next_tx,
+                                              vec![&prev_to_keypair]).ok().unwrap();
 
-        signed_tx.verify(&vec![prev_output]).ok().unwrap();
+        verify(signed_tx, prev_output).ok().unwrap();
     }
 
     #[test]
@@ -236,10 +226,10 @@ mod tests {
             output: vec![next_output],
         };
 
-        let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
-                                                  vec![&prev_to_keypair]).ok().unwrap();
+        let signed_tx = SignedTx::from_raw_tx(next_tx,
+                                              vec![&prev_to_keypair]).ok().unwrap();
 
-        signed_tx.verify(&vec![prev_output]).err().unwrap();
+        verify(signed_tx, prev_output).err().unwrap();
     }
 
     #[test]
@@ -264,13 +254,13 @@ mod tests {
             output: vec![next_output],
         };
 
-        let mut signed_tx = SignedMoveTx::from_raw_tx(next_tx,
+        let mut signed_tx = SignedTx::from_raw_tx(next_tx,
                                                   vec![&prev_to_keypair]).ok().unwrap();
 
         let invalid_key_pair = key_pair_generator.random_keypair().ok().unwrap();
         signed_tx.input[0].sig_public_key = invalid_key_pair.pub_key();
 
-        signed_tx.verify(&vec![prev_output]).err().unwrap();
+        verify(signed_tx, prev_output).err().unwrap();
     }
 
     #[test]
@@ -296,10 +286,10 @@ mod tests {
         };
 
         let invalid_key_pair = key_pair_generator.random_keypair().ok().unwrap();
-        let signed_tx = SignedMoveTx::from_raw_tx(next_tx,
-                                                  vec![&invalid_key_pair]).ok().unwrap();
+        let signed_tx = SignedTx::from_raw_tx(next_tx,
+                                              vec![&invalid_key_pair]).ok().unwrap();
 
-        signed_tx.verify(&vec![prev_output]).err().unwrap();
+        verify(signed_tx, prev_output).err().unwrap();
     }
 
     fn next_address(key_pair_generator: &KeyPairGenerator) -> Address {
@@ -318,5 +308,17 @@ mod tests {
             to_address: prev_to_addr,
         };
         (prev_to_keypair, prev_output)
+    }
+
+    struct SingleEntryUtxoStore(TxOut);
+
+    impl UtxoStore for SingleEntryUtxoStore{
+        fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> &TxOut {
+            &self.0
+        }
+    }
+
+    fn verify(transaction: SignedTx, utxo: TxOut) -> Result<(), Error> {
+        transaction.verify(&SingleEntryUtxoStore(utxo))
     }
 }

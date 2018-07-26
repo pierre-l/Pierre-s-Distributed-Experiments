@@ -6,6 +6,8 @@ use ring::digest::SHA256;
 use ring::error::Unspecified;
 use ring::signature::ED25519;
 use untrusted::{self, Input};
+use serde::{Serialize, Serializer};
+use serde::ser::SerializeTuple;
 
 pub struct KeyPairGenerator{
     rng: SystemRandom,
@@ -29,7 +31,7 @@ impl KeyPairGenerator{
 }
 
 const PUBKEY_LEN: usize = 32;
-#[derive(Clone)]
+#[derive(Serialize, Clone)]
 pub struct PubKey([u8; PUBKEY_LEN]);
 
 impl PubKey{
@@ -49,6 +51,21 @@ impl PubKey{
 const SIGNATURE_LEN: usize = 64;
 #[derive(Clone)]
 pub struct Signature([u8; SIGNATURE_LEN]);
+
+impl Serialize for Signature
+{
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        let mut seq = serializer.serialize_tuple(SIGNATURE_LEN)?;
+        for e in self.0.iter() {
+            seq.serialize_element(e)?;
+        }
+        seq.end()
+    }
+}
 
 const HASH_LEN: usize = 32;
 #[derive(Serialize, Clone, Eq, PartialEq)]
