@@ -26,7 +26,7 @@ How it works
 ---
 Basic knowledge about proof-of-work blockchains and the Tokio library are recommended to deeply understand how this simulation works.
 
-In this simulation, every blockchain node starts by mining blocks from the genesis block. It answers to every new connection with a status message containing the longest chain known by the node. When a new block is mined or received from a peer, this new chain is validated and compared to the longest known chain. If it is effectively longer then it is propagated to the miner and to the peers.
+In this simulation, every blockchain node starts by mining blocks from the genesis block. It answers to every new connection with a status message containing the longest chain known by the node. Since the difficulty is constant here, the longest chain is the chain with the most work. When a new block is mined or received from a peer, this new chain is validated and compared to the longest known chain. If it is effectively longer then it is propagated to the miner and to the peers.
 
 In the end, a consensus is reached quickly (every node has the same longest chain) and the chain is expanded further as time passes.
 
@@ -35,4 +35,4 @@ Limitations
 
 This project inherits the benefits and limitations of PDE's [Network Simulator](../network_simulator).
 
-An additional compromise is the delay enforced on mining iterations: a node will try to mine a new block every X milliseconds and not continuously.
+An additional compromise is the delay enforced on mining iterations: a node will try to mine a new block every X milliseconds and not continuously. This helps in making sure that all nodes are equal and benefit from the same mining capacity.
