@@ -73,7 +73,13 @@ pub struct Hash([u8; HASH_LEN]);
 
 impl Hash {
     pub fn min() -> Hash{
-        Hash([0u8; 32])
+        Hash([0u8; HASH_LEN])
+    }
+}
+
+impl AsRef<[u8; HASH_LEN]> for Hash {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
     }
 }
 

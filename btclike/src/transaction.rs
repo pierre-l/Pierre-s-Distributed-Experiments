@@ -10,7 +10,7 @@ use Error;
 pub struct Address(Hash);
 
 impl Address{
-    fn from_pub_key(pub_key: &PubKey) -> Address{
+    pub fn from_pub_key(pub_key: &PubKey) -> Address{
         Address(hash(&pub_key.as_bytes()))
     }
 }
@@ -27,6 +27,22 @@ pub struct TxOut{
     to_address: Address,
 }
 
+impl TxOut {
+    pub fn new(
+        amount: u32,
+        to_address: Address,
+    ) -> TxOut {
+        TxOut{
+            amount,
+            to_address,
+        }
+    }
+
+    pub fn amount(&self) -> &u32 {
+        &self.amount
+    }
+}
+
 #[derive(Serialize, Clone)]
 struct RawMoveTx{
     input: Vec<RawTxIn>,
@@ -34,7 +50,7 @@ struct RawMoveTx{
 }
 
 #[derive(Serialize, Clone)]
-struct SignedTxIn{
+pub struct SignedTxIn{
     prev_tx_hash: Hash,
     prev_tx_output_index: u8,
     tx_signature: Signature,
@@ -61,6 +77,10 @@ impl SignedTxIn{
             prev_tx_hash: self.prev_tx_hash.clone(),
             prev_tx_output_index: self.prev_tx_output_index,
         }
+    }
+
+    pub fn sig_pub_key(&self) -> &PubKey {
+        &self.sig_public_key
     }
 
     fn verify_signature(&self, tx_bytes: &[u8]) -> Result<(), Error> {
@@ -118,6 +138,14 @@ impl SignedTx {
             input,
             output,
         }
+    }
+
+    pub fn output(&self) -> &Vec<TxOut> {
+        &self.output
+    }
+
+    pub fn input(&self) -> &Vec<SignedTxIn> {
+        &self.input
     }
 
     pub fn verify<S>(&self, utxo_store: &S) -> Result<(), Error>

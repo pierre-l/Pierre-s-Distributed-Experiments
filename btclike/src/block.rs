@@ -9,6 +9,7 @@ use serde::Serializer;
 use std::u8::MAX as U8_MAX;
 use transaction::SignedTx;
 use transaction::UtxoStore;
+use transaction::TxOut;
 
 pub struct Block {
     header: Header,
@@ -91,8 +92,10 @@ impl Header {
     fn verify(&self) -> Result<(), Error>{
         let computed_hash = self.hashed_content.hash()?;
 
-        if computed_hash != self.hash{
+        if computed_hash != self.hash {
             Err(Error::InvalidHeaderHash)
+        } else if self.difficulty().is_lower_than(computed_hash) {
+            Err(Error::HashIsTooHigh)
         } else {
             Ok(())
         }
@@ -115,14 +118,21 @@ impl HeaderHashedContent{
     }
 }
 
+const COINBASE_AMOUNT:u32 = 1000;
+
 #[derive(Serialize)]
 struct Body {
+    coinbase_tx_out: TxOut,
     transactions: Vec<SignedTx>,
 }
 
 impl Body{
-    fn new(transactions: Vec<SignedTx>) -> Body {
+    fn new(
+        coinbase_tx_out: TxOut,
+        transactions: Vec<SignedTx>
+    ) -> Body {
         Body{
+            coinbase_tx_out,
             transactions,
         }
     }
@@ -136,11 +146,29 @@ impl Body{
         where
             S: UtxoStore
     {
+        self.verify_coinbase_tx();
+
         for transaction in &self.transactions {
             transaction.verify(utxo_store)?;
         }
 
         Ok(())
+    }
+
+    fn verify_coinbase_tx(&self) -> Result<(), Error> {
+        if self.coinbase_tx_out.amount() != &COINBASE_AMOUNT {
+            Err(Error::InvalidCoinbaseAmount)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+struct SingleEntryUtxoStore(TxOut);
+
+impl UtxoStore for SingleEntryUtxoStore{
+    fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> &TxOut {
+        &self.0
     }
 }
 
@@ -183,6 +211,10 @@ impl Difficulty {
 
             self.threshold[next_index] = U8_MAX / 2;
         }
+    }
+
+    pub fn is_lower_than(&self, hash: Hash) -> bool {
+        &self.threshold < hash.as_ref()
     }
 }
 

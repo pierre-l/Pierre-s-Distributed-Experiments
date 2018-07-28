@@ -10,7 +10,7 @@ struct Chain{
 }
 
 impl Chain{
-    // TODO Performance: an iterative verification would be more efficient and would avoid stack overflow.
+    // PERFORMANCE an iterative verification would be more efficient and would avoid stack overflow.
     pub fn verify<S>(&self, expected_genesis_hash: Hash, utxo_store: &S)
         -> Result<(), Error>
     where

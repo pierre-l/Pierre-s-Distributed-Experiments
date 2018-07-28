@@ -38,6 +38,9 @@ pub enum Error{
     InvalidHeaderHash,
     InvalidDifficulty,
     InvalidHeight,
+    TooManyInputForCoinbaseTx,
+    InvalidCoinbaseAmount,
+    HashIsTooHigh,
 }
 
 impl From<bincode::Error> for Error{
