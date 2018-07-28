@@ -245,3 +245,38 @@ impl Nonce {
         self.0 += 1;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crypto::KeyPairGenerator;
+    use transaction::Address;
+
+    struct EmptyUtxoStore;
+
+    impl UtxoStore for EmptyUtxoStore{
+        fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> Option<&TxOut> {
+            None
+        }
+    }
+
+    #[test]
+    fn can_verify_an_empty_block() {
+        let key_pair_generator = KeyPairGenerator::new();
+
+        let wallet_a = key_pair_generator.random_keypair().ok().unwrap();
+        let address_a = Address::from_pub_key(&wallet_a.pub_key());
+
+        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, address_a);
+
+        let nonce = Nonce::new();
+        let difficulty = Difficulty::min_difficulty();
+        let body = Body::new(coinbase_tx_out, vec![]);
+        let previous_block_hash = Hash::min();
+        let header = Header::new(nonce, difficulty, previous_block_hash, 0, &body).ok().unwrap();
+
+        let block = Block::new(header, body);
+
+        block.verify(&EmptyUtxoStore{}).ok().unwrap()
+    }
+}
