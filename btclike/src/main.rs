@@ -41,6 +41,7 @@ pub enum Error{
     TooManyInputForCoinbaseTx,
     InvalidCoinbaseAmount,
     HashIsTooHigh,
+    UtxoNotFound,
 }
 
 impl From<bincode::Error> for Error{

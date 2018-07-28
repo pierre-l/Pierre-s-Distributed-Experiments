@@ -155,12 +155,14 @@ impl SignedTx {
         let mut prev_tx_outs = vec![];
 
         for tx_in in &self.input {
-            let prev_tx_out = utxo_store.find(
+            if let Some(prev_tx_out) = utxo_store.find(
                 &tx_in.prev_tx_hash,
                 &tx_in.prev_tx_output_index
-            );
-
-            prev_tx_outs.push(prev_tx_out);
+            ) {
+                prev_tx_outs.push(prev_tx_out);
+            } else {
+                return Err(Error::UtxoNotFound);
+            }
         }
 
         let mut in_amount = 0;
@@ -196,7 +198,7 @@ impl SignedTx {
 }
 
 pub trait UtxoStore {
-    fn find(&self, transaction_hash: &Hash, txo_index: &u8) -> &TxOut;
+    fn find(&self, transaction_hash: &Hash, txo_index: &u8) -> Option<&TxOut>;
 }
 
 #[cfg(test)]
@@ -341,8 +343,8 @@ mod tests {
     struct SingleEntryUtxoStore(TxOut);
 
     impl UtxoStore for SingleEntryUtxoStore{
-        fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> &TxOut {
-            &self.0
+        fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> Option<&TxOut> {
+            Some(&self.0)
         }
     }
 

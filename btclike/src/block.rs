@@ -167,8 +167,8 @@ impl Body{
 struct SingleEntryUtxoStore(TxOut);
 
 impl UtxoStore for SingleEntryUtxoStore{
-    fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> &TxOut {
-        &self.0
+    fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> Option<&TxOut> {
+        Some(&self.0)
     }
 }
 
