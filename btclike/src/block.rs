@@ -17,7 +17,7 @@ pub struct Block {
 }
 
 impl Block{
-    fn new(header: Header, body: Body) -> Block{
+    pub fn new(header: Header, body: Body) -> Block{
         Block{
             header,
             body,
@@ -49,15 +49,14 @@ pub struct Header {
 }
 
 impl Header {
-    fn new(
+    pub fn new(
         nonce: Nonce,
         difficulty: Difficulty,
         previous_block_hash: Hash,
         height: u32,
-        body: &Body,
+        serialized_body: &[u8],
     ) -> Result<Header, Error>{
-        let serialized = bincode::serialize(&body)?;
-        let body_hash = hash(&serialized);
+        let body_hash = hash(&serialized_body);
 
         let hashed_content = HeaderHashedContent {
             nonce,
@@ -71,6 +70,12 @@ impl Header {
             hash: hashed_content.hash()?,
             hashed_content,
         })
+    }
+
+    pub fn increment_nonce(&mut self) -> Result<(), Error>{
+        self.hashed_content.nonce.increment();
+        self.hash = self.hashed_content.hash()?;
+        Ok(())
     }
 
     pub fn hash(&self) -> &Hash {
@@ -89,7 +94,7 @@ impl Header {
         &self.hashed_content.height
     }
 
-    fn verify(&self) -> Result<(), Error>{
+    pub fn verify(&self) -> Result<(), Error>{
         let computed_hash = self.hashed_content.hash()?;
 
         if computed_hash != self.hash {
@@ -118,16 +123,16 @@ impl HeaderHashedContent{
     }
 }
 
-const COINBASE_AMOUNT:u32 = 1000;
+pub const COINBASE_AMOUNT:u32 = 1000;
 
-#[derive(Serialize)]
-struct Body {
+#[derive(Serialize, Clone)]
+pub struct Body {
     coinbase_tx_out: TxOut,
     transactions: Vec<SignedTx>,
 }
 
 impl Body{
-    fn new(
+    pub fn new(
         coinbase_tx_out: TxOut,
         transactions: Vec<SignedTx>
     ) -> Body {
@@ -146,7 +151,7 @@ impl Body{
         where
             S: UtxoStore
     {
-        self.verify_coinbase_tx();
+        self.verify_coinbase_tx()?;
 
         for transaction in &self.transactions {
             transaction.verify(utxo_store)?;
@@ -161,14 +166,6 @@ impl Body{
         } else {
             Ok(())
         }
-    }
-}
-
-struct SingleEntryUtxoStore(TxOut);
-
-impl UtxoStore for SingleEntryUtxoStore{
-    fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> Option<&TxOut> {
-        Some(&self.0)
     }
 }
 
@@ -272,8 +269,9 @@ mod tests {
         let nonce = Nonce::new();
         let difficulty = Difficulty::min_difficulty();
         let body = Body::new(coinbase_tx_out, vec![]);
+        let serialized_body = bincode::serialize(&body).ok().unwrap();
         let previous_block_hash = Hash::min();
-        let header = Header::new(nonce, difficulty, previous_block_hash, 0, &body).ok().unwrap();
+        let header = Header::new(nonce, difficulty, previous_block_hash, 0, &serialized_body).ok().unwrap();
 
         let block = Block::new(header, body);
 

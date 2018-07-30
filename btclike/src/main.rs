@@ -13,6 +13,13 @@ mod transaction;
 
 use log::LevelFilter;
 use ring::error::Unspecified;
+use block::Difficulty;
+use transaction::Address;
+use transaction::TxOut;
+use crypto::KeyPairGenerator;
+use crypto::Hash;
+use transaction::UtxoStore;
+use blockchain::Chain;
 
 fn main() {
     // Always print backtrace on panic.
@@ -23,7 +30,29 @@ fn main() {
         .filter_level(LevelFilter::Info)
         .init();
 
+    let key_pair_generator = KeyPairGenerator::new();
+
+    let wallet = key_pair_generator.random_keypair().ok().unwrap();
+    let address = Address::from_pub_key(&wallet.pub_key());
+
+    let mut difficulty = Difficulty::min_difficulty();
+
+    for _i in 0..4 {
+        difficulty.increase();
+    }
+
+    let chain = Chain::mine_new_genesis(difficulty, address).ok().unwrap();
+
+    chain.verify(chain.head_hash(), &EmptyUtxoStore{}).ok().unwrap();
     info!("Hello world.");
+}
+
+struct EmptyUtxoStore;
+
+impl UtxoStore for EmptyUtxoStore{
+    fn find(&self, _transaction_hash: &Hash, _txo_index: &u8) -> Option<&TxOut> {
+        None
+    }
 }
 
 pub enum Error{

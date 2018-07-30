@@ -79,10 +79,6 @@ impl SignedTxIn{
         }
     }
 
-    pub fn sig_pub_key(&self) -> &PubKey {
-        &self.sig_public_key
-    }
-
     fn verify_signature(&self, tx_bytes: &[u8]) -> Result<(), Error> {
         self.sig_public_key.verify_signature(tx_bytes, &self.tx_signature)
             .map_err(|err|{
@@ -91,7 +87,7 @@ impl SignedTxIn{
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub struct SignedTx {
     input: Vec<SignedTxIn>,
     output: Vec<TxOut>,
@@ -138,14 +134,6 @@ impl SignedTx {
             input,
             output,
         }
-    }
-
-    pub fn output(&self) -> &Vec<TxOut> {
-        &self.output
-    }
-
-    pub fn input(&self) -> &Vec<SignedTxIn> {
-        &self.input
     }
 
     pub fn verify<S>(&self, utxo_store: &S) -> Result<(), Error>
