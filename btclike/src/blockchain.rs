@@ -347,10 +347,10 @@ mod tests {
     fn can_verify_an_empty_block() {
         let key_pair_generator = KeyPairGenerator::new();
 
-        let wallet_a = key_pair_generator.random_keypair().ok().unwrap();
-        let address_a = Address::from_pub_key(&wallet_a.pub_key());
+        let account = key_pair_generator.random_keypair().ok().unwrap();
+        let address = Address::from_pub_key(&account.pub_key());
 
-        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, address_a);
+        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, address);
 
         let nonce = Nonce::new();
         let difficulty = Difficulty::min_difficulty();
@@ -366,10 +366,47 @@ mod tests {
 
     #[test]
     fn can_mine_new_chain() {
-        mine_new_genesis().ok().unwrap()
+        let chain = mine_new_genesis().ok().unwrap();
+        verify_genesis_chain(&chain).ok().unwrap();
     }
 
-    fn mine_new_genesis() -> Result<(), Error>{
+    #[test]
+    fn hash_ensures_integrity() {
+        let mut chain = mine_new_genesis().ok().unwrap();
+        chain.head.header.hashed_content.height = 1;
+        assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
+
+        let mut chain = mine_new_genesis().ok().unwrap();
+        chain.head.header.hashed_content.nonce = Nonce::new();
+        assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
+
+        let mut chain = mine_new_genesis().ok().unwrap();
+        chain.head.header.hashed_content.body_hash = hash(b"Garneray");
+        assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
+
+        let mut chain = mine_new_genesis().ok().unwrap();
+        chain.head.header.hashed_content.previous_block_hash = hash(b"Garneray");
+        assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
+
+        let mut chain = mine_new_genesis().ok().unwrap();
+        chain.head.header.hashed_content.difficulty = Difficulty::min_difficulty();
+        assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
+
+        let mut chain = mine_new_genesis().ok().unwrap();
+        chain.head.header.hash = hash(b"Garneray");
+        assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
+
+        let mut chain = mine_new_genesis().ok().unwrap();
+        let key_pair_generator = KeyPairGenerator::new();
+        let account = key_pair_generator.random_keypair().ok().unwrap();
+        let address = Address::from_pub_key(&account.pub_key());
+        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, address);
+        let body = Body::new(coinbase_tx_out, vec![]);
+        chain.head.body = body;
+        assert_eq!(Error::HeaderAndBodyHashMismatch, verify_genesis_chain(&chain).err().unwrap());
+    }
+
+    fn mine_new_genesis() -> Result<Chain, Error>{
         let key_pair_generator = KeyPairGenerator::new();
 
         let wallet = key_pair_generator.random_keypair().ok().unwrap();
@@ -380,6 +417,12 @@ mod tests {
 
         let chain = Chain::mine_new_genesis(difficulty, address)?;
 
+        verify_genesis_chain(&chain)?;
+
+        Ok(chain)
+    }
+
+    fn verify_genesis_chain(chain: &Chain) -> Result<(), Error>{
         chain.verify(chain.head_hash(), &EmptyUtxoStore{})
     }
 }

@@ -54,6 +54,7 @@ impl UtxoStore for EmptyUtxoStore{
     }
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Error{
     InvalidNumberOfKeyPairs(String),
     SerializationError(String),
