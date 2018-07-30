@@ -6,14 +6,13 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate bincode;
 
-mod block;
 mod blockchain;
 mod crypto;
 mod transaction;
 
 use log::LevelFilter;
 use ring::error::Unspecified;
-use block::Difficulty;
+use blockchain::Difficulty;
 use transaction::Address;
 use transaction::TxOut;
 use crypto::KeyPairGenerator;
