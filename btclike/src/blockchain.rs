@@ -324,7 +324,7 @@ impl Serialize for Difficulty
     }
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, PartialEq)]
 pub struct Nonce(u64);
 
 impl Nonce {
@@ -377,7 +377,15 @@ mod tests {
         assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
 
         let mut chain = mine_new_genesis().ok().unwrap();
-        chain.head.header.hashed_content.nonce = Nonce::new();
+        let previous_nonce = chain.head.header.hashed_content.nonce.clone();
+        let mut new_nonce = Nonce::new();
+
+        while previous_nonce == new_nonce {
+            new_nonce.increment()
+        }
+
+        chain.head.header.hashed_content.nonce = new_nonce;
+
         assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
 
         let mut chain = mine_new_genesis().ok().unwrap();
