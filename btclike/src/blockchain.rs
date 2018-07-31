@@ -376,12 +376,7 @@ mod tests {
         let genesis_hash = chain.head.header.hash().clone();
 
         for _i in 0..10 {
-            let new_block = mine_new_block(&chain).ok().unwrap();
-
-            chain = Chain{
-                head: new_block,
-                tail: Some(Arc::new(chain)),
-            }
+            chain = mine_new_chain(chain)?;
         }
 
         assert_eq!(&10, chain.head.header.height());
@@ -393,7 +388,7 @@ mod tests {
         }
     }
 
-    fn mine_new_block(chain: &Chain) -> Result<Block, Error>{
+    fn mine_new_chain(chain: Chain) -> Result<Chain, Error>{
         let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, random_address());
         let body = Body::new(coinbase_tx_out, vec![]);
 
@@ -405,7 +400,10 @@ mod tests {
         )?;
         let block = Block::new(header, body);
 
-        Ok(block)
+        Ok(Chain{
+            head: block.ok().unwrap(),
+            tail: Some(Arc::new(chain)),
+        })
     }
 
     fn mine_new_header(body: &Body, height: u32, difficulty: Difficulty) -> Result<Header, Error> {
