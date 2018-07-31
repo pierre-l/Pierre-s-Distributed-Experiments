@@ -371,6 +371,74 @@ mod tests {
     }
 
     #[test]
+    fn can_mine_more_blocks() {
+        let mut chain = mine_new_genesis().ok().unwrap();
+        let genesis_hash = chain.head.header.hash().clone();
+
+        for _i in 0..10 {
+            let new_block = mine_new_block(&chain).ok().unwrap();
+
+            chain = Chain{
+                head: new_block,
+                tail: Some(Arc::new(chain)),
+            }
+        }
+
+        assert_eq!(&10, chain.head.header.height());
+        match chain.verify(&genesis_hash, &EmptyUtxoStore) {
+            Err(error) => {
+                panic!("Invalid chain: {:?}", error);
+            }
+            Ok(()) => {}
+        }
+    }
+
+    fn mine_new_block(chain: &Chain) -> Result<Block, Error>{
+        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, random_address());
+        let body = Body::new(coinbase_tx_out, vec![]);
+
+        let current_chain_header = &chain.head.header.hashed_content;
+        let header = mine_new_header(
+            &body,
+            current_chain_header.height + 1,
+            current_chain_header.difficulty.clone()
+        )?;
+        let block = Block::new(header, body);
+
+        Ok(block)
+    }
+
+    fn mine_new_header(body: &Body, height: u32, difficulty: Difficulty) -> Result<Header, Error> {
+        let serialized_body = bincode::serialize(&body)?;
+
+        let previous_block_hash = Hash::min();
+        let mut header = Header::new(
+            Nonce::new(),
+            difficulty,
+            previous_block_hash,
+            height,
+            &serialized_body
+        )?;
+
+        while {
+            match header.verify() {
+                Err(Error::HashIsTooHigh) => {
+                    header.increment_nonce()?;
+                    true
+                },
+                Ok(()) => {
+                    return Ok(header);
+                },
+                Err(error) => {
+                    return Err(error);
+                }
+            }
+        } { };
+
+        unreachable!()
+    }
+
+    #[test]
     fn hash_ensures_integrity() {
         let mut chain = mine_new_genesis().ok().unwrap();
         chain.head.header.hashed_content.height = 1;
@@ -405,25 +473,17 @@ mod tests {
         assert_eq!(Error::InvalidHeaderHash, verify_genesis_chain(&chain).err().unwrap());
 
         let mut chain = mine_new_genesis().ok().unwrap();
-        let key_pair_generator = KeyPairGenerator::new();
-        let account = key_pair_generator.random_keypair().ok().unwrap();
-        let address = Address::from_pub_key(&account.pub_key());
-        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, address);
+        let coinbase_tx_out = TxOut::new(COINBASE_AMOUNT, random_address());
         let body = Body::new(coinbase_tx_out, vec![]);
         chain.head.body = body;
         assert_eq!(Error::HeaderAndBodyHashMismatch, verify_genesis_chain(&chain).err().unwrap());
     }
 
     fn mine_new_genesis() -> Result<Chain, Error>{
-        let key_pair_generator = KeyPairGenerator::new();
-
-        let wallet = key_pair_generator.random_keypair().ok().unwrap();
-        let address = Address::from_pub_key(&wallet.pub_key());
-
         let mut difficulty = Difficulty::min_difficulty();
         difficulty.increase();
 
-        let chain = Chain::mine_new_genesis(difficulty, address)?;
+        let chain = Chain::mine_new_genesis(difficulty, random_address())?;
 
         verify_genesis_chain(&chain)?;
 
@@ -432,5 +492,11 @@ mod tests {
 
     fn verify_genesis_chain(chain: &Chain) -> Result<(), Error>{
         chain.verify(chain.head_hash(), &EmptyUtxoStore{})
+    }
+
+    fn random_address() -> Address{
+        let key_pair_generator = KeyPairGenerator::new();
+        let account = key_pair_generator.random_keypair().ok().unwrap();
+        Address::from_pub_key(&account.pub_key())
     }
 }
