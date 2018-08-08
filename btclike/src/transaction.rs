@@ -44,7 +44,7 @@ impl TxOut {
 }
 
 #[derive(Serialize, Clone)]
-struct RawMoveTx{
+struct RawTx {
     input: Vec<RawTxIn>,
     output: Vec<TxOut>,
 }
@@ -94,7 +94,7 @@ pub struct SignedTx {
 }
 
 impl SignedTx {
-    fn from_raw_tx(raw_tx: RawMoveTx, key_pairs: Vec<&KeyPair>)
+    fn from_raw_tx(raw_tx: RawTx, key_pairs: Vec<&KeyPair>)
                    -> Result<SignedTx, Error>
     {
         let serialized = bincode::serialize(&raw_tx)?;
@@ -122,7 +122,7 @@ impl SignedTx {
         })
     }
 
-    fn clone_without_signatures(&self) -> RawMoveTx{
+    fn clone_without_signatures(&self) -> RawTx {
         let output = self.output.clone();
         let mut input = vec![];
 
@@ -130,7 +130,7 @@ impl SignedTx {
             input.push(signed_input.clone_without_signature())
         }
 
-        RawMoveTx{
+        RawTx {
             input,
             output,
         }
@@ -211,7 +211,7 @@ mod tests {
             to_address: next_address(&key_pair_generator),
         };
 
-        let next_tx = RawMoveTx{
+        let next_tx = RawTx {
             input: vec![next_input],
             output: vec![next_output],
         };
@@ -239,7 +239,7 @@ mod tests {
             to_address: next_address(&key_pair_generator),
         };
 
-        let next_tx = RawMoveTx{
+        let next_tx = RawTx {
             input: vec![next_input],
             output: vec![next_output],
         };
@@ -267,7 +267,7 @@ mod tests {
             to_address: next_address(&key_pair_generator),
         };
 
-        let next_tx = RawMoveTx{
+        let next_tx = RawTx {
             input: vec![next_input],
             output: vec![next_output],
         };
@@ -298,7 +298,7 @@ mod tests {
             to_address: next_address(&key_pair_generator),
         };
 
-        let next_tx = RawMoveTx{
+        let next_tx = RawTx {
             input: vec![next_input],
             output: vec![next_output],
         };
