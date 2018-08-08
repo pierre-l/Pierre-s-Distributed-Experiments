@@ -16,7 +16,7 @@ impl Address{
 }
 
 #[derive(Serialize, Clone)]
-struct RawTxIn{
+pub struct RawTxIn{
     prev_tx_hash: Hash,
     prev_tx_output_index: u8,
 }
@@ -44,7 +44,7 @@ impl TxOut {
 }
 
 #[derive(Serialize, Clone)]
-struct RawTx {
+pub struct RawTx {
     input: Vec<RawTxIn>,
     output: Vec<TxOut>,
 }
