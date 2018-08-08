@@ -12,6 +12,7 @@ use transaction::Address;
 use transaction::SignedTx;
 use transaction::TxOut;
 use transaction::UtxoStore;
+use transaction::CoinbaseTx;
 
 pub struct Chain{
     head: Block,
@@ -221,7 +222,7 @@ pub const COINBASE_AMOUNT:u32 = 1000;
 
 #[derive(Serialize, Clone)]
 pub struct Body {
-    coinbase_tx_out: TxOut,
+    coinbase_tx: CoinbaseTx,
     transactions: Vec<SignedTx>,
 }
 
@@ -231,7 +232,7 @@ impl Body{
         transactions: Vec<SignedTx>
     ) -> Body {
         Body{
-            coinbase_tx_out,
+            coinbase_tx: CoinbaseTx(coinbase_tx_out),
             transactions,
         }
     }
@@ -255,7 +256,7 @@ impl Body{
     }
 
     fn verify_coinbase_tx(&self) -> Result<(), Error> {
-        if self.coinbase_tx_out.amount() != &COINBASE_AMOUNT {
+        if self.coinbase_tx.0.amount() != &COINBASE_AMOUNT {
             Err(Error::InvalidCoinbaseAmount)
         } else {
             Ok(())

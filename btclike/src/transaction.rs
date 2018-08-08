@@ -189,6 +189,9 @@ pub trait UtxoStore {
     fn find(&self, transaction_hash: &Hash, txo_index: &u8) -> Option<&TxOut>;
 }
 
+#[derive(Serialize, Clone)]
+pub struct CoinbaseTx(pub TxOut);
+
 #[cfg(test)]
 mod tests {
     use super::*;
