@@ -68,7 +68,7 @@ impl Serialize for Signature
 }
 
 const HASH_LEN: usize = 32;
-#[derive(Serialize, Clone, Eq, PartialEq)]
+#[derive(Serialize, Clone, Eq, PartialEq, Hash)]
 pub struct Hash([u8; HASH_LEN]);
 
 impl Hash {

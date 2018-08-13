@@ -6,7 +6,7 @@ use crypto::hash;
 use bincode;
 use Error;
 
-#[derive(Serialize, Clone, PartialEq)]
+#[derive(Serialize, Clone, PartialEq, Eq, Hash)]
 pub struct Address(Hash);
 
 impl Address{
@@ -17,8 +17,8 @@ impl Address{
 
 #[derive(Serialize, Clone)]
 pub struct RawTxIn{
-    prev_tx_hash: Hash,
-    prev_tx_output_index: u8,
+    pub prev_tx_hash: Hash,
+    pub prev_tx_output_index: u8,
 }
 
 #[derive(Serialize, Clone)]
@@ -41,12 +41,16 @@ impl TxOut {
     pub fn amount(&self) -> &u32 {
         &self.amount
     }
+
+    pub fn to_address(&self) -> &Address{
+        &self.to_address
+    }
 }
 
 #[derive(Serialize, Clone)]
 pub struct RawTx {
-    input: Vec<RawTxIn>,
-    output: Vec<TxOut>,
+    pub input: Vec<RawTxIn>,
+    pub output: Vec<TxOut>,
 }
 
 #[derive(Serialize, Clone)]
@@ -94,7 +98,7 @@ pub struct SignedTx {
 }
 
 impl SignedTx {
-    fn from_raw_tx(raw_tx: RawTx, key_pairs: Vec<&KeyPair>)
+    pub fn from_raw_tx(raw_tx: RawTx, key_pairs: Vec<&KeyPair>)
                    -> Result<SignedTx, Error>
     {
         let serialized = bincode::serialize(&raw_tx)?;

@@ -9,6 +9,7 @@ extern crate bincode;
 mod blockchain;
 mod crypto;
 mod transaction;
+mod wallet;
 
 use log::LevelFilter;
 use ring::error::Unspecified;
@@ -71,6 +72,7 @@ pub enum Error{
     InvalidCoinbaseAmount,
     HashIsTooHigh,
     UtxoNotFound,
+    NotEnoughTokens,
 }
 
 impl From<bincode::Error> for Error{
