@@ -246,17 +246,18 @@ impl Body{
         where
             S: UtxoStore
     {
-        self.verify_coinbase_tx()?;
-
+        let mut fees = 0;
         for transaction in &self.transactions {
-            transaction.verify(utxo_store)?;
+            fees += transaction.verify(utxo_store)?;
         }
+
+        self.verify_coinbase_tx(fees)?;
 
         Ok(())
     }
 
-    fn verify_coinbase_tx(&self) -> Result<(), Error> {
-        if self.coinbase_tx.0.amount() != &COINBASE_AMOUNT {
+    fn verify_coinbase_tx(&self, fees: u32) -> Result<(), Error> {
+        if self.coinbase_tx.0.amount() != &(COINBASE_AMOUNT + fees) {
             Err(Error::InvalidCoinbaseAmount)
         } else {
             Ok(())

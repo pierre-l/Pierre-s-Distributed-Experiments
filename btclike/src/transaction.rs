@@ -140,7 +140,7 @@ impl SignedTx {
         }
     }
 
-    pub fn verify<S>(&self, utxo_store: &S) -> Result<(), Error>
+    pub fn verify<S>(&self, utxo_store: &S) -> Result<u32, Error>
     where
         S: UtxoStore,
     {
@@ -171,6 +171,8 @@ impl SignedTx {
             return Err(Error::InvalidTxAmount);
         }
 
+        let fees = in_amount - out_amount;
+
         let raw_next_tx = self.clone_without_signatures();
         let serialized = bincode::serialize(&raw_next_tx)?;
 
@@ -185,7 +187,7 @@ impl SignedTx {
             tx_in.verify_signature(&serialized)?
         }
 
-        Ok(())
+        Ok(fees)
     }
 }
 
@@ -343,7 +345,8 @@ mod tests {
         }
     }
 
-    fn verify(transaction: SignedTx, utxo: TxOut) -> Result<(), Error> {
-        transaction.verify(&SingleEntryUtxoStore(utxo))
+    fn verify(transaction: SignedTx, utxo: TxOut) -> Result<u32, Error> {
+        transaction.verify(&SingleEntryUtxoStore(utxo))?;
+        Ok(0)
     }
 }
